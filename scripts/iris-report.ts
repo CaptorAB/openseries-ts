@@ -177,7 +177,7 @@ function generateHtml(
   <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 24px; background: #fff; color: #333; }
-    .header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; min-height: 80px; }
+    .header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; min-height: 80px; }
     .header-logo { display: flex; align-items: center; }
     .header-logo img { height: 60px; width: auto; max-width: 270px; object-fit: contain; }
     .header-title { grid-column: 2; text-align: center; font-size: 2.625rem; font-weight: 600; margin: 0; line-height: 1.2; }
@@ -188,7 +188,7 @@ function generateHtml(
       .header-title { grid-column: 1; grid-row: 2; font-size: 2.025rem; }
     }
     .main { max-width: min(1600px, 96vw); margin: 0 auto; }
-    .charts { display: grid; grid-template-columns: 1fr 400px; gap: 24px; }
+    .charts { display: grid; grid-template-columns: 1fr minmax(480px, auto); gap: 24px; }
     @media (max-width: 1000px) { .charts { grid-template-columns: 1fr; } }
     .charts-left { display: flex; flex-direction: column; gap: 24px; }
     .chart-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; }
@@ -349,16 +349,18 @@ async function main(): Promise<void> {
     "Return (CAGR)",
     alignedSeries.map((s) => formatPct(s.geoRet())),
   );
-  const y = new Date().getFullYear();
+  const lastDate = frame.lastIdx;
+  const lastYear = lastDate.slice(0, 4);
+  const lastMonth = lastDate.slice(5, 7);
   addRow(
     "Year-to-Date",
-    alignedSeries.map((s) => formatPct(s.geoRet({ fromDate: `${y}-01-01` }))),
+    alignedSeries.map((s) => formatPct(s.valueRet({ fromDate: `${lastYear}-01-01`, toDate: lastDate }))),
   );
-  const d = new Date();
-  const mtdFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   addRow(
     "Month-to-Date",
-    alignedSeries.map((s) => formatPct(s.geoRet({ fromDate: mtdFrom }))),
+    alignedSeries.map((s) =>
+      formatPct(s.valueRet({ fromDate: `${lastYear}-${lastMonth}-01`, toDate: lastDate })),
+    ),
   );
   addRow(
     "Volatility",
