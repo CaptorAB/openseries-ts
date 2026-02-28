@@ -47,7 +47,8 @@ function computeAnnualReturns(dates: string[], values: number[]): Record<string,
   return result;
 }
 
-function computeCaptureRatioCagr(
+/** Exported for testing. CAGR-based capture ratio; returns NaN for edge cases. */
+export function computeCaptureRatioCagr(
   assetRets: number[],
   benchmarkRets: number[],
   timeFactor: number,
@@ -125,8 +126,20 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
   addRow("Year-to-Date", (s) => s.valueRet({ fromDate: ytdFrom, toDate: lastDate }));
   addRow("Month-to-Date", (s) => s.valueRet({ fromDate: mtdFrom, toDate: lastDate }));
   addRow("Volatility", (s) => s.vol());
-  addRow("Sharpe Ratio", (s) => s.retVolRatio(0));
-  addRow("Sortino Ratio", (s) => s.sortinoRatio(0, 0));
+  stats.push({
+    metric: "Sharpe Ratio",
+    values: series.map((s) => {
+      const v = s.retVolRatio(0);
+      return Number.isNaN(v) ? "" : formatNum(v);
+    }),
+  });
+  stats.push({
+    metric: "Sortino Ratio",
+    values: series.map((s) => {
+      const v = s.sortinoRatio(0, 0);
+      return Number.isNaN(v) ? "" : formatNum(v);
+    }),
+  });
 
   const ir = frame.infoRatio(benchmarkIdx);
   const te = frame.trackingError(benchmarkIdx);
@@ -138,11 +151,15 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
   });
   stats.push({
     metric: "Information Ratio",
-    values: ir.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
+    values: ir.map((v, i) =>
+      i === benchmarkIdx ? "" : Number.isNaN(v) ? "" : formatNum(v),
+    ),
   });
   stats.push({
     metric: "Tracking Error (weekly)",
-    values: te.map((v) => (Number.isNaN(v) ? "" : formatPct(v))),
+    values: te.map((v, i) =>
+      i === benchmarkIdx ? "" : Number.isNaN(v) ? "" : formatPct(v),
+    ),
   });
 
   const betas = series.map((_, i) =>

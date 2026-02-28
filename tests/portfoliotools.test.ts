@@ -68,6 +68,7 @@ describe("efficientFrontier", () => {
     expect(ef.maxSharpe).toBeDefined();
   });
 
+
   it("exercises projected gradient boundary with extreme mean spread", () => {
     // Assets with very different mean returns can cause analytic solution to have
     // negative weights; target near rMax/rMin triggers boundary branches (289-293)
@@ -90,4 +91,5 @@ describe("efficientFrontier", () => {
     const ef = efficientFrontier(frame, 500, 99, 60);
     expect(ef.frontier.length).toBeGreaterThan(0);
   });
+
 });

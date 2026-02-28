@@ -125,6 +125,20 @@ describe("OpenFrame", () => {
     expect(frame.length).toBeGreaterThan(2);
   });
 
+  it("uses countries from options when provided", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [100, 101], { countries: ["NO"] });
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [200, 201], { countries: ["US"] });
+    const frame = new OpenFrame([s1, s2], null, { countries: ["SE", "NO"] });
+    expect(frame.countries).toEqual(["SE", "NO"]);
+  });
+
+  it("derives countries from first constituent when options not provided", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [100, 101], { countries: ["US"] });
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [200, 201]);
+    const frame = new OpenFrame([s1, s2]);
+    expect(frame.countries).toEqual(["US"]);
+  });
+
   it("ensureReturns uses RTRN path when all constituents are RTRN", () => {
     const sim = ReturnSimulation.fromGbm(2, 0.05, 0.1, 100, 252, 71);
     const dc = sim.toDateColumns("Asset", { end: "2020-06-30" });
