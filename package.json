@@ -3,21 +3,20 @@
   "version": "1.0.0",
   "type": "module",
   "description": "Tools for analyzing financial timeseries. TypeScript port of the Python openseries package.",
-  "main": "dist/index.js",
-  "module": "dist/index.mjs",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js"
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "prepublishOnly": "npm run build",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
@@ -29,21 +28,17 @@
     "report:captor": "tsx scripts/report.ts",
     "docs": "node -e \"require('fs').rmSync('docs',{recursive:true,force:true})\" && typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\""
   },
-  "keywords": [
-    "finance",
-    "fintech",
-    "timeseries",
-    "investment",
-    "risk",
-    "volatility",
-    "portfolio"
-  ],
+  "keywords": ["finance", "fintech", "timeseries", "investment", "risk", "volatility", "portfolio"],
   "author": "",
   "license": "BSD-3-Clause",
+  "repository": "github:CaptorAB/openseries-ts",
+  "homepage": "https://captorab.github.io/openseries-ts/",
+  "bugs": "https://github.com/CaptorAB/openseries-ts/issues",
   "devDependencies": {
     "@types/node": "^20.10.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.3",
+    "open": "^11.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.21.0",
     "typedoc": "^0.28.3",
@@ -55,8 +50,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "date-holidays": "^3.26.8",
-    "open": "^11.0.0"
+    "date-holidays": "^3.26.8"
   },
   "overrides": {
     "glob": "^13.0.0"
