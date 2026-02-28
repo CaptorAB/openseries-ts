@@ -25,6 +25,7 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
     "report": "tsx scripts/captor-report.ts",
+    "iris-report": "tsx scripts/iris-report.ts",
     "docs": "typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\""
   },
   "keywords": [

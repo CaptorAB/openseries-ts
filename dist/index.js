@@ -202,6 +202,7 @@ var OpenTimeSeries = class _OpenTimeSeries {
     this.markets = params.markets ?? null;
     this.tsdf = this.dates.map((d, i) => ({ date: d, value: this.values[i] }));
   }
+  /** Creates an OpenTimeSeries from a name, dates array, and values array. */
   static fromArrays(name, dates, values, options) {
     return new _OpenTimeSeries({
       name,
@@ -215,12 +216,14 @@ var OpenTimeSeries = class _OpenTimeSeries {
       localCcy: options?.localCcy ?? true
     });
   }
+  /** Creates an OpenTimeSeries from a record or array of {date, value}. */
   static fromObject(data) {
     const entries = Array.isArray(data) ? data : Object.entries(data).map(([date, value]) => ({ date, value }));
     const dates = entries.map((e) => e.date);
     const values = entries.map((e) => e.value);
     return _OpenTimeSeries.fromArrays("Series", dates, values);
   }
+  /** Creates an OpenTimeSeries from simulation dateColumns by column index. */
   static fromDateColumns(dateColumns, options) {
     const idx = options?.columnIndex ?? 0;
     const col = dateColumns.columns[idx];

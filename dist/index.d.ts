@@ -30,12 +30,16 @@ declare class IncorrectArgumentComboError extends Error {
     constructor(message: string);
 }
 
+/**
+ * Options to slice a series by date range.
+ */
 type DateRangeOptions = {
     monthsFromLast?: number;
     fromDate?: string;
     toDate?: string;
     periodsInYearFixed?: number;
 };
+/** Timeseries of dates and values with methods for risk metrics. */
 declare class OpenTimeSeries {
     readonly timeseriesId: string;
     readonly instrumentId: string;
@@ -65,6 +69,7 @@ declare class OpenTimeSeries {
         countries?: string;
         markets?: string | string[] | null;
     });
+    /** Creates an OpenTimeSeries from a name, dates array, and values array. */
     static fromArrays(name: string, dates: string[], values: number[], options?: {
         valuetype?: ValueType;
         timeseriesId?: string;
@@ -72,10 +77,12 @@ declare class OpenTimeSeries {
         baseccy?: string;
         localCcy?: boolean;
     }): OpenTimeSeries;
+    /** Creates an OpenTimeSeries from a record or array of {date, value}. */
     static fromObject(data: Record<string, number> | {
         date: string;
         value: number;
     }[]): OpenTimeSeries;
+    /** Creates an OpenTimeSeries from simulation dateColumns by column index. */
     static fromDateColumns(dateColumns: {
         dates: string[];
         columns: {
@@ -120,8 +127,12 @@ declare class OpenTimeSeries {
     setNewLabel(lvlZero?: string, lvlOne?: ValueType): this;
     toDrawdownSeries(): this;
 }
+/**
+ * Chains two timeseries at their overlap. Scales back by front's level at the overlap date.
+ */
 declare function timeseriesChain(front: OpenTimeSeries, back: OpenTimeSeries, oldFee?: number): OpenTimeSeries;
 
+/** Collection of aligned timeseries with portfolio and correlation methods. */
 declare class OpenFrame {
     constituents: OpenTimeSeries[];
     weights: number[] | null;
@@ -156,6 +167,7 @@ declare class OpenFrame {
 }
 
 type RandomGenerator = () => number;
+/** Monte Carlo return simulation with optional seed for reproducibility. */
 declare class ReturnSimulation {
     readonly numberOfSims: number;
     readonly tradingDays: number;
@@ -198,14 +210,19 @@ declare class ReturnSimulation {
         }[];
     };
 }
+/** Returns a seeded RNG function returning values in [0, 1). */
 declare function randomGenerator(seed?: number): () => number;
 
+/** Normalizes string or Date input to a Date. */
 declare function dateFix(input: string | Date): Date;
+/** Returns a Date as YYYY-MM-DD string. */
 declare function dateToStr(d: Date): string;
+/** Returns an array of business-day date strings (excludes weekends). */
 declare function generateCalendarDateRange(tradingDays: number, options?: {
     start?: string;
     end?: string;
 }): string[];
+/** Offsets a date by a number of business days. */
 declare function offsetBusinessDays(ddate: Date, days: number): Date;
 
 interface SimulatedPortfolio {
@@ -214,6 +231,7 @@ interface SimulatedPortfolio {
     sharpe: number;
     weights: number[];
 }
+/** Simulates random long-only portfolios from frame returns and covariance. */
 declare function simulatePortfolios(frame: OpenFrame, numPorts: number, seed: number): SimulatedPortfolio[];
 interface EfficientFrontierPoint {
     stdev: number;
@@ -221,6 +239,7 @@ interface EfficientFrontierPoint {
     sharpe: number;
     weights: number[];
 }
+/** Computes the mean-variance efficient frontier using analytic QP. */
 declare function efficientFrontier(frame: OpenFrame, numPorts?: number, seed?: number, frontierPoints?: number): {
     frontier: EfficientFrontierPoint[];
     simulated: SimulatedPortfolio[];
@@ -255,9 +274,13 @@ declare function fetchCaptorSeries(id: string): Promise<CaptorSeriesResponse>;
  */
 declare function fetchCaptorSeriesBatch(ids: string[]): Promise<CaptorSeriesResponse[]>;
 
+/** Returns the arithmetic mean of an array. */
 declare function mean(arr: number[]): number;
+/** Returns the sample standard deviation. */
 declare function std(arr: number[], ddof?: number): number;
+/** Returns the quantile at q (0-1) using linear interpolation. */
 declare function quantile(arr: number[], q: number, sorted?: boolean): number;
+/** Returns period-over-period percentage change. First element is 0. */
 declare function pctChange(values: number[]): number[];
 
-export { type CaptorSeriesResponse, DateAlignmentError, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, generateCalendarDateRange, mean, offsetBusinessDays, pctChange, quantile, randomGenerator, simulatePortfolios, std, timeseriesChain };
+export { type CaptorSeriesResponse, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, generateCalendarDateRange, mean, offsetBusinessDays, pctChange, quantile, randomGenerator, simulatePortfolios, std, timeseriesChain };
