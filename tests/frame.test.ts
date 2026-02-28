@@ -1,49 +1,78 @@
 import { describe, it, expect } from "vitest";
-import { OpenTimeSeries } from "../src/series";
 import { OpenFrame } from "../src/frame";
-import { ValueType } from "../src/types";
+import { simulatedFrame } from "./fixtures";
 
-function makeSeries(name: string, startVal: number, n: number): OpenTimeSeries {
-  const dates = Array.from({ length: n }, (_, i) => {
-    const d = new Date("2020-01-01");
-    d.setDate(d.getDate() + i);
-    return d.toISOString().slice(0, 10);
-  });
-  const values = Array.from({ length: n }, (_, i) => startVal + i * 0.5 + Math.random() * 0.2);
-  return OpenTimeSeries.fromArrays(name, dates, values);
-}
+const to9 = (x: number) => x.toFixed(9);
 
 describe("OpenFrame", () => {
   it("creates from constituents", () => {
-    const s1 = makeSeries("A", 100, 10);
-    const s2 = makeSeries("B", 200, 10);
-    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const frame = simulatedFrame({ numAssets: 2 });
     expect(frame.itemCount).toBe(2);
   });
 
-  it("computes correlation matrix", () => {
-    const s1 = makeSeries("A", 100, 50);
-    const s2 = makeSeries("B", 100, 50);
-    const frame = new OpenFrame([s1, s2]);
+  it("computes correlation matrix - diagonal and off-diagonal match expected (seed 71)", () => {
+    const frame = simulatedFrame();
     const corr = frame.correlMatrix();
-    expect(corr.length).toBe(2);
-    expect(corr[0][0]).toBeCloseTo(1);
+    expect(corr.length).toBe(3);
+    expect(to9(corr[0][0])).toBe("1.000000000");
+    expect(to9(corr[1][1])).toBe("1.000000000");
+    expect(to9(corr[2][2])).toBe("1.000000000");
+    expect(to9(corr[0][1])).toBe("0.036829293");
   });
 
-  it("makes portfolio with weights", () => {
-    const s1 = makeSeries("A", 100, 20);
-    const s2 = makeSeries("B", 100, 20);
-    const frame = new OpenFrame([s1, s2], [0.6, 0.4]);
-    const port = frame.makePortfolio("Portfolio");
-    expect(port.dates.length).toBeGreaterThan(0);
-    expect(port.values.length).toBe(port.dates.length);
+  it("makePortfolio with weights - first and last values match expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    const port = frame.makePortfolio("P");
+    expect(to9(port.values[0])).toBe("1.000000000");
+    expect(to9(port.values[port.values.length - 1])).toBe("0.000044611");
   });
 
-  it("makes portfolio with eq_weights strategy", () => {
-    const s1 = makeSeries("A", 100, 20);
-    const s2 = makeSeries("B", 100, 20);
-    const frame = new OpenFrame([s1, s2]);
-    const port = frame.makePortfolio("Portfolio", "eq_weights");
+  it("makePortfolio eq_weights - last value matches expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    const port = frame.makePortfolio("P", "eq_weights");
     expect(port.values[0]).toBeCloseTo(1);
+    expect(to9(port.values[port.values.length - 1])).toBe("0.000044611");
+  });
+
+  it("makePortfolio inv_vol - last value matches expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    const port = frame.makePortfolio("P", "inv_vol");
+    expect(to9(port.values[port.values.length - 1])).toBe("6076.987351429");
+  });
+
+  it("trackingError matches expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    const te = frame.trackingError(0);
+    expect(to9(te[0])).toBe("0.000000000");
+    expect(to9(te[1])).toBe("2051.797710559");
+    expect(to9(te[2])).toBe("2057.289530032");
+  });
+
+  it("infoRatio matches expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    const ir = frame.infoRatio(0);
+    expect(to9(ir[0])).toBe("0.000000000");
+    expect(to9(ir[1])).toBe("0.987702124");
+    expect(to9(ir[2])).toBe("1.021492174");
+  });
+
+  it("beta and jensenAlpha match expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    expect(to9(frame.beta(0, 1))).toBe("0.338496765");
+    expect(to9(frame.jensenAlpha(0, 1))).toBe("-2005.822663171");
+  });
+
+  it("makePortfolio min_vol_overweight produces valid output (seed 71)", () => {
+    const frame = simulatedFrame();
+    const port = frame.makePortfolio("P", "min_vol_overweight");
+    expect(port.values[0]).toBeCloseTo(1);
+    expect(port.values.length).toBe(frame.length);
+  });
+
+  it("makePortfolio max_div produces valid output (seed 71)", () => {
+    const frame = simulatedFrame();
+    const port = frame.makePortfolio("P", "max_div");
+    expect(port.values[0]).toBeCloseTo(1);
+    expect(port.values.length).toBe(frame.length);
   });
 });

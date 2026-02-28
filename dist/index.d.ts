@@ -76,7 +76,7 @@ declare class OpenTimeSeries {
         date: string;
         value: number;
     }[]): OpenTimeSeries;
-    static fromDataFrame(df: {
+    static fromDateColumns(dateColumns: {
         dates: string[];
         columns: {
             name: string;
@@ -186,7 +186,7 @@ declare class ReturnSimulation {
     static fromGbm(number_of_sims: number, mean_annual_return: number, mean_annual_vol: number, trading_days: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
     static fromLognormal(number_of_sims: number, mean_annual_return: number, mean_annual_vol: number, trading_days: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
     static fromMertonJumpGbm(number_of_sims: number, trading_days: number, mean_annual_return: number, mean_annual_vol: number, jumps_lamda: number, jumps_sigma?: number, jumps_mu?: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
-    toDataFrame(name: string, options?: {
+    toDateColumns(name: string, options?: {
         start?: string;
         end?: string;
         asReturns?: boolean;

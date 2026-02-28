@@ -269,11 +269,11 @@ var OpenTimeSeries = class _OpenTimeSeries {
     const values = entries.map((e) => e.value);
     return _OpenTimeSeries.fromArrays("Series", dates, values);
   }
-  static fromDataFrame(df, options) {
+  static fromDateColumns(dateColumns, options) {
     const idx = options?.columnIndex ?? 0;
-    const col = df.columns[idx];
+    const col = dateColumns.columns[idx];
     if (!col) throw new Error("Column index out of range");
-    return _OpenTimeSeries.fromArrays(col.name, df.dates, col.values, {
+    return _OpenTimeSeries.fromArrays(col.name, dateColumns.dates, col.values, {
       valuetype: options?.valuetype
     });
   }
@@ -1120,7 +1120,7 @@ var ReturnSimulation = class _ReturnSimulation {
       jumps_mu
     });
   }
-  toDataFrame(name, options) {
+  toDateColumns(name, options) {
     const dates = generateCalendarDateRange(this.tradingDays, options);
     const asReturns = options?.asReturns !== false;
     const data = asReturns ? this.dframe : this.results;
