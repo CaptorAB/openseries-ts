@@ -24,7 +24,9 @@ console.log(series.maxDrawdown()); // Max drawdown
 - **OpenFrame**: Multi-series comparison, correlation, portfolio construction, rebalancing
 - **ReturnSimulation**: Monte Carlo with reproducible seeds (normal, lognormal, GBM, Merton jump-diffusion)
 - **Portfolio tools**: Efficient frontier, simulated portfolios, weight strategies
-- **Date utilities**: Business day calendars, date offsets, period-end alignment
+- **Date utilities**: Business day calendars (via date-holidays), date offsets, period-end alignment
+- **Captor API**: Fetch timeseries from Captor Open API (`fetchCaptorSeries`, `fetchCaptorSeriesBatch`)
+- **Report**: `reportHtml(frame, options)` — programmatic HTML report; CLI via `npm run report`
 
 ## API Overview
 
@@ -48,6 +50,15 @@ console.log(series.maxDrawdown()); // Max drawdown
 - `fromNormal()`, `fromLognormal()`, `fromGbm()`, `fromMertonJumpGbm()` — all accept optional `seed` for reproducibility
 - `toDateColumns(name, options?)` — returns dates and columns (as returns or cumulative prices)
 - `randomGenerator(seed?)` — seeded RNG for custom use
+
+### Captor API
+
+- `fetchCaptorSeries(id)` — fetch a single series from Captor Open API
+- `fetchCaptorSeriesBatch(ids)` — fetch multiple series
+
+### Report
+
+- `reportHtml(frame, options?)` — generate HTML report (cumulative performance, annual returns, stats) from an OpenFrame. Options: `title`, `logoUrl`, `addLogo`. Countries for business-day metrics come from `frame.countries`.
 
 ## Documentation
 
@@ -79,7 +90,9 @@ npm run lint:fix       # ESLint with auto-fix
 npm run typecheck      # TypeScript check
 npm run check          # lint + typecheck
 npm run docs           # Generate API docs to docs/
-npm run report         # Captor API report (optional --title)
+npm run report         # Captor API report (--ids id1 id2 ... [--title, --countries, --filename, --no-open, --no-logo])
+npm run report:iris    # Iris Bond + Benchmark preset
+npm run report:captor  # Same as report (default Captor IDs)
 ```
 
 ## License
