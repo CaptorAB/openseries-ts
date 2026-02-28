@@ -96,11 +96,11 @@ npm run lint:fix       # ESLint with auto-fix
 npm run typecheck      # TypeScript check
 npm run check          # lint + typecheck
 npm run docs           # Generate API docs to docs/
-npm run report         # Captor API report (--ids id1 id2 ... [--title, --countries, --filename, --no-open, --no-logo])
+npm run report         # Captor API report (--ids id1 id2 ... [--title, --countries, --from-date, --to-date, --filename, --no-open, --no-logo])
 npm run report:iris    # Iris Bond + Benchmark preset
 npm run report:captor  # Same as report (default Captor IDs)
 npm run plot:iris      # Full-page plot (Captor Iris Bond + Benchmark)
-npm run plot           # Plot with default Captor IDs
+npm run plot           # Plot with default Captor IDs (same options as report)
 npm run plot:captor    # Same as plot
 ```
 
