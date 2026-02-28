@@ -1,0 +1,51 @@
+{
+  "name": "openseries-ts",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Tools for analyzing financial timeseries. TypeScript port of the Python openseries package.",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "report": "tsx scripts/captor-report.ts"
+  },
+  "keywords": [
+    "finance",
+    "fintech",
+    "timeseries",
+    "investment",
+    "risk",
+    "volatility",
+    "portfolio"
+  ],
+  "author": "",
+  "license": "BSD-3-Clause",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "eslint": "^8.55.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "open": "^11.0.0"
+  }
+}
