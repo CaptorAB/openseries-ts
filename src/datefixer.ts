@@ -1,3 +1,4 @@
+/** Normalizes string or Date input to a Date. */
 export function dateFix(input: string | Date): Date {
   if (typeof input === "string") {
     return new Date(input + "T12:00:00Z");
@@ -5,10 +6,12 @@ export function dateFix(input: string | Date): Date {
   return input instanceof Date ? input : new Date(input);
 }
 
+/** Returns a Date as YYYY-MM-DD string. */
 export function dateToStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Returns an array of business-day date strings (excludes weekends). */
 export function generateCalendarDateRange(
   tradingDays: number,
   options?: { start?: string; end?: string },
@@ -48,6 +51,7 @@ export function generateCalendarDateRange(
   return result;
 }
 
+/** Offsets a date by a number of business days. */
 export function offsetBusinessDays(
   ddate: Date,
   days: number,

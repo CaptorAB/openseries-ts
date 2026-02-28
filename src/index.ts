@@ -1,4 +1,8 @@
-export { OpenTimeSeries, timeseriesChain } from "./series";
+export {
+  OpenTimeSeries,
+  timeseriesChain,
+  type DateRangeOptions,
+} from "./series";
 export { OpenFrame } from "./frame";
 export {
   ReturnSimulation,

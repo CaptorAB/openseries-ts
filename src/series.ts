@@ -12,6 +12,9 @@ import {
   std,
 } from "./utils";
 
+/**
+ * Options to slice a series by date range.
+ */
 export type DateRangeOptions = {
   monthsFromLast?: number;
   fromDate?: string;
@@ -33,6 +36,7 @@ function daysBetween(a: string, b: string): number {
   );
 }
 
+/** Timeseries of dates and values with methods for risk metrics. */
 export class OpenTimeSeries {
   readonly timeseriesId: string;
   readonly instrumentId: string;
@@ -74,6 +78,7 @@ export class OpenTimeSeries {
     this.tsdf = this.dates.map((d, i) => ({ date: d, value: this.values[i] }));
   }
 
+  /** Creates an OpenTimeSeries from a name, dates array, and values array. */
   static fromArrays(
     name: string,
     dates: string[],
@@ -99,6 +104,7 @@ export class OpenTimeSeries {
     });
   }
 
+  /** Creates an OpenTimeSeries from a record or array of {date, value}. */
   static fromObject(
     data: Record<string, number> | { date: string; value: number }[],
   ): OpenTimeSeries {
@@ -110,6 +116,7 @@ export class OpenTimeSeries {
     return OpenTimeSeries.fromArrays("Series", dates, values);
   }
 
+  /** Creates an OpenTimeSeries from simulation dateColumns by column index. */
   static fromDateColumns(
     dateColumns: { dates: string[]; columns: { name: string; values: number[] }[] },
     options?: { columnIndex?: number; valuetype?: ValueType },
@@ -445,6 +452,9 @@ export class OpenTimeSeries {
   }
 }
 
+/**
+ * Chains two timeseries at their overlap. Scales back by front's level at the overlap date.
+ */
 export function timeseriesChain(
   front: OpenTimeSeries,
   back: OpenTimeSeries,

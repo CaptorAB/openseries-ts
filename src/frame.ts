@@ -71,6 +71,7 @@ function alignSeriesToCommonDates(
   return { dates, valuesBySeries: ffilled };
 }
 
+/** Collection of aligned timeseries with portfolio and correlation methods. */
 export class OpenFrame {
   constituents: OpenTimeSeries[];
   weights: number[] | null;

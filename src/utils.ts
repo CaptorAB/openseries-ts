@@ -1,8 +1,10 @@
+/** Returns the arithmetic mean of an array. */
 export function mean(arr: number[]): number {
   if (arr.length === 0) return NaN;
   return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+/** Returns the sample standard deviation. */
 export function std(arr: number[], ddof = 1): number {
   if (arr.length <= ddof) return NaN;
   const m = mean(arr);
@@ -11,6 +13,7 @@ export function std(arr: number[], ddof = 1): number {
   return Math.sqrt(variance);
 }
 
+/** Returns the quantile at q (0-1) using linear interpolation. */
 export function quantile(arr: number[], q: number, sorted = false): number {
   const a = sorted ? [...arr] : [...arr].sort((x, y) => x - y);
   if (a.length === 0) return NaN;
@@ -21,6 +24,7 @@ export function quantile(arr: number[], q: number, sorted = false): number {
   return a[lo] + weight * (a[hi] - a[lo]);
 }
 
+/** Returns period-over-period percentage change. First element is 0. */
 export function pctChange(values: number[]): number[] {
   const result: number[] = [0];
   for (let i = 1; i < values.length; i++) {

@@ -49,6 +49,23 @@ console.log(series.maxDrawdown()); // Max drawdown
 - `toDateColumns(name, options?)` — returns dates and columns (as returns or cumulative prices)
 - `randomGenerator(seed?)` — seeded RNG for custom use
 
+## Documentation
+
+API docs are generated with TypeDoc:
+
+```bash
+npm run docs
+```
+
+This writes static HTML to `docs/`. To serve them via GitHub Pages:
+
+1. Run `npm run docs` and commit the `docs/` folder
+2. In the repo: **Settings → Pages**
+3. Under **Source**, choose **Deploy from a branch**
+4. Branch: `main` (or your default branch), folder: `/docs`
+
+Docs will be available at `https://<username>.github.io/<repo>/`.
+
 ## Scripts
 
 ```bash
@@ -59,6 +76,7 @@ npm run lint           # ESLint
 npm run lint:fix       # ESLint with auto-fix
 npm run typecheck      # TypeScript check
 npm run check          # lint + typecheck
+npm run docs           # Generate API docs to docs/
 npm run report         # Captor API report (optional --title)
 ```
 

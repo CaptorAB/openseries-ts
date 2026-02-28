@@ -10,6 +10,7 @@ export interface SimulatedPortfolio {
   weights: number[];
 }
 
+/** Simulates random long-only portfolios from frame returns and covariance. */
 export function simulatePortfolios(
   frame: OpenFrame,
   numPorts: number,
@@ -79,6 +80,7 @@ export interface EfficientFrontierPoint {
   weights: number[];
 }
 
+/** Computes the mean-variance efficient frontier using analytic QP. */
 export function efficientFrontier(
   frame: OpenFrame,
   numPorts = 5000,

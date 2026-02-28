@@ -24,7 +24,8 @@
     "lint:fix": "eslint src --fix",
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck",
-    "report": "tsx scripts/captor-report.ts"
+    "report": "tsx scripts/captor-report.ts",
+    "docs": "typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\""
   },
   "keywords": [
     "finance",
@@ -45,7 +46,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.56.1",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "typedoc": "^0.28.3"
   },
   "engines": {
     "node": ">=22"

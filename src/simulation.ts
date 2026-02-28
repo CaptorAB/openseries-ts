@@ -41,6 +41,7 @@ function samplePoisson(lamda: number, rng: () => number): number {
   return k;
 }
 
+/** Monte Carlo return simulation with optional seed for reproducibility. */
 export class ReturnSimulation {
   readonly numberOfSims: number;
   readonly tradingDays: number;
@@ -270,6 +271,7 @@ export class ReturnSimulation {
   }
 }
 
+/** Returns a seeded RNG function returning values in [0, 1). */
 export function randomGenerator(seed?: number): () => number {
   return createRng(seed);
 }
