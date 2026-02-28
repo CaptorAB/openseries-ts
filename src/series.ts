@@ -110,6 +110,18 @@ export class OpenTimeSeries {
     return OpenTimeSeries.fromArrays("Series", dates, values);
   }
 
+  static fromDataFrame(
+    df: { dates: string[]; columns: { name: string; values: number[] }[] },
+    options?: { columnIndex?: number; valuetype?: ValueType },
+  ): OpenTimeSeries {
+    const idx = options?.columnIndex ?? 0;
+    const col = df.columns[idx];
+    if (!col) throw new Error("Column index out of range");
+    return OpenTimeSeries.fromArrays(col.name, df.dates, col.values, {
+      valuetype: options?.valuetype,
+    });
+  }
+
   fromDeepcopy(): OpenTimeSeries {
     return new OpenTimeSeries({
       timeseriesId: this.timeseriesId,

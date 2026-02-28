@@ -76,6 +76,16 @@ declare class OpenTimeSeries {
         date: string;
         value: number;
     }[]): OpenTimeSeries;
+    static fromDataFrame(df: {
+        dates: string[];
+        columns: {
+            name: string;
+            values: number[];
+        }[];
+    }, options?: {
+        columnIndex?: number;
+        valuetype?: ValueType;
+    }): OpenTimeSeries;
     fromDeepcopy(): OpenTimeSeries;
     getTsdfValues(): number[];
     getTsdfDates(): string[];
@@ -135,7 +145,7 @@ declare class OpenFrame {
     };
     private calcWeights;
     private invertMatrix;
-    trackingError(baseColumn?: number, opts?: {
+    trackingError(baseColumn?: number, _opts?: {
         fromDate?: string;
         toDate?: string;
     }): number[];
@@ -145,6 +155,7 @@ declare class OpenFrame {
     addTimeseries(series: OpenTimeSeries): this;
 }
 
+type RandomGenerator = () => number;
 declare class ReturnSimulation {
     readonly numberOfSims: number;
     readonly tradingDays: number;
@@ -153,6 +164,9 @@ declare class ReturnSimulation {
     readonly meanAnnualVol: number;
     readonly dframe: number[][];
     readonly seed?: number;
+    readonly jumpsLamda: number;
+    readonly jumpsSigma: number;
+    readonly jumpsMu: number;
     constructor(params: {
         number_of_sims: number;
         trading_days: number;
@@ -161,15 +175,21 @@ declare class ReturnSimulation {
         mean_annual_vol: number;
         dframe: number[][];
         seed?: number;
+        jumps_lamda?: number;
+        jumps_sigma?: number;
+        jumps_mu?: number;
     });
     get results(): number[][];
     get realizedMeanReturn(): number;
     get realizedVol(): number;
     static fromNormal(number_of_sims: number, mean_annual_return: number, mean_annual_vol: number, trading_days: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
     static fromGbm(number_of_sims: number, mean_annual_return: number, mean_annual_vol: number, trading_days: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
+    static fromLognormal(number_of_sims: number, mean_annual_return: number, mean_annual_vol: number, trading_days: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
+    static fromMertonJumpGbm(number_of_sims: number, trading_days: number, mean_annual_return: number, mean_annual_vol: number, jumps_lamda: number, jumps_sigma?: number, jumps_mu?: number, trading_days_in_year?: number, seed?: number): ReturnSimulation;
     toDataFrame(name: string, options?: {
         start?: string;
         end?: string;
+        asReturns?: boolean;
     }): {
         dates: string[];
         columns: {
@@ -240,4 +260,4 @@ declare function std(arr: number[], ddof?: number): number;
 declare function quantile(arr: number[], q: number, sorted?: boolean): number;
 declare function pctChange(values: number[]): number[];
 
-export { type CaptorSeriesResponse, DateAlignmentError, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, generateCalendarDateRange, mean, offsetBusinessDays, pctChange, quantile, randomGenerator, simulatePortfolios, std, timeseriesChain };
+export { type CaptorSeriesResponse, DateAlignmentError, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, generateCalendarDateRange, mean, offsetBusinessDays, pctChange, quantile, randomGenerator, simulatePortfolios, std, timeseriesChain };

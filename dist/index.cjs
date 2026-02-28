@@ -269,6 +269,14 @@ var OpenTimeSeries = class _OpenTimeSeries {
     const values = entries.map((e) => e.value);
     return _OpenTimeSeries.fromArrays("Series", dates, values);
   }
+  static fromDataFrame(df, options) {
+    const idx = options?.columnIndex ?? 0;
+    const col = df.columns[idx];
+    if (!col) throw new Error("Column index out of range");
+    return _OpenTimeSeries.fromArrays(col.name, df.dates, col.values, {
+      valuetype: options?.valuetype
+    });
+  }
   fromDeepcopy() {
     return new _OpenTimeSeries({
       timeseriesId: this.timeseriesId,
@@ -813,11 +821,10 @@ var OpenFrame = class {
     }
     return inv;
   }
-  trackingError(baseColumn = -1, opts) {
+  trackingError(baseColumn = -1, _opts) {
     const rets = this.ensureReturns().map((col) => col.slice(1));
     const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;
     const baseRets = rets[baseIdx];
-    const n = baseRets.length;
     const tf = this.periodInAYear;
     const result = [];
     for (let i = 0; i < this.itemCount; i++) {
@@ -898,23 +905,33 @@ function generateCalendarDateRange(tradingDays, options) {
     throw new Error("trading_days must be greater than zero");
   }
   const result = [];
-  let current;
-  if (options?.start) {
-    current = dateFix(options.start);
-  } else if (options?.end) {
-    current = dateFix(options.end);
-    current.setDate(current.getDate() - tradingDays * 2);
-  } else {
-    current = /* @__PURE__ */ new Date();
-  }
-  let count = 0;
-  while (count < tradingDays) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      result.push(dateToStr2(current));
-      count++;
+  if (options?.end) {
+    const current = dateFix(options.end);
+    const temp = [];
+    while (temp.length < tradingDays) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) {
+        temp.push(dateToStr2(current));
+      }
+      current.setDate(current.getDate() - 1);
     }
-    current.setDate(current.getDate() + 1);
+    result.push(...temp.reverse());
+  } else {
+    let current;
+    if (options?.start) {
+      current = dateFix(options.start);
+    } else {
+      current = /* @__PURE__ */ new Date();
+    }
+    let count = 0;
+    while (count < tradingDays) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) {
+        result.push(dateToStr2(current));
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
   }
   return result;
 }
@@ -955,6 +972,18 @@ function boxMuller(rng) {
     return r * Math.cos(2 * Math.PI * v);
   };
 }
+function samplePoisson(lamda, rng) {
+  const u = rng();
+  let p = Math.exp(-lamda);
+  let s = p;
+  let k = 0;
+  while (u > s) {
+    k++;
+    p *= lamda / k;
+    s += p;
+  }
+  return k;
+}
 var ReturnSimulation = class _ReturnSimulation {
   constructor(params) {
     this.numberOfSims = params.number_of_sims;
@@ -964,6 +993,9 @@ var ReturnSimulation = class _ReturnSimulation {
     this.meanAnnualVol = params.mean_annual_vol;
     this.dframe = params.dframe;
     this.seed = params.seed;
+    this.jumpsLamda = params.jumps_lamda ?? 0;
+    this.jumpsSigma = params.jumps_sigma ?? 0;
+    this.jumpsMu = params.jumps_mu ?? 0;
   }
   get results() {
     return this.dframe.map((row) => {
@@ -1033,16 +1065,73 @@ var ReturnSimulation = class _ReturnSimulation {
       seed
     });
   }
+  static fromLognormal(number_of_sims, mean_annual_return, mean_annual_vol, trading_days, trading_days_in_year = 252, seed) {
+    const rng = boxMuller(createRng(seed));
+    const mu = mean_annual_return / trading_days_in_year;
+    const sigma = mean_annual_vol / Math.sqrt(trading_days_in_year);
+    const dframe = [];
+    for (let i = 0; i < number_of_sims; i++) {
+      const row = [];
+      for (let j = 0; j < trading_days; j++) {
+        const z = rng();
+        row.push(Math.exp(mu + sigma * z) - 1);
+      }
+      dframe.push(row);
+    }
+    return new _ReturnSimulation({
+      number_of_sims,
+      trading_days,
+      trading_days_in_year,
+      mean_annual_return,
+      mean_annual_vol,
+      dframe,
+      seed
+    });
+  }
+  static fromMertonJumpGbm(number_of_sims, trading_days, mean_annual_return, mean_annual_vol, jumps_lamda, jumps_sigma = 0, jumps_mu = 0, trading_days_in_year = 252, seed) {
+    const uniformRng = createRng(seed);
+    const normalRng = boxMuller(() => uniformRng());
+    const sigmaDaily = mean_annual_vol / Math.sqrt(trading_days_in_year);
+    const lamdaDaily = jumps_lamda / trading_days_in_year;
+    const drift = (mean_annual_return - 0.5 * mean_annual_vol ** 2 - jumps_lamda * (jumps_mu + jumps_sigma ** 2)) / trading_days_in_year;
+    const dframe = [];
+    for (let i = 0; i < number_of_sims; i++) {
+      const row = [];
+      for (let j = 0; j < trading_days; j++) {
+        const wiener = sigmaDaily * normalRng();
+        const nJumps = samplePoisson(lamdaDaily, uniformRng);
+        const jumpNormal = nJumps === 0 ? 0 : jumps_mu + jumps_sigma * normalRng();
+        const poissonJumps = nJumps * jumpNormal;
+        row.push(drift + wiener + poissonJumps);
+      }
+      row[0] = 0;
+      dframe.push(row);
+    }
+    return new _ReturnSimulation({
+      number_of_sims,
+      trading_days,
+      trading_days_in_year,
+      mean_annual_return,
+      mean_annual_vol,
+      dframe,
+      seed,
+      jumps_lamda,
+      jumps_sigma,
+      jumps_mu
+    });
+  }
   toDataFrame(name, options) {
     const dates = generateCalendarDateRange(this.tradingDays, options);
+    const asReturns = options?.asReturns !== false;
+    const data = asReturns ? this.dframe : this.results;
     const columns = [];
     if (this.numberOfSims === 1) {
-      columns.push({ name, values: this.results[0] });
+      columns.push({ name, values: data[0].map((v) => v) });
     } else {
       for (let i = 0; i < this.numberOfSims; i++) {
         columns.push({
           name: `${name}_${i}`,
-          values: this.results[i]
+          values: data[i].map((v) => v)
         });
       }
     }
@@ -1055,7 +1144,6 @@ function randomGenerator(seed) {
 
 // src/portfoliotools.ts
 function simulatePortfolios(frame, numPorts, seed) {
-  const weights = frame.weights ?? frame.columnLabels.map(() => 1 / frame.itemCount);
   const rets = frame.tsdf.columns.map((col) => {
     const v = col.slice(1);
     return frame.constituents.every((c) => c.valuetype === "Return(Total)" /* RTRN */) ? v : (() => {

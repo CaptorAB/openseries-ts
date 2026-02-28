@@ -1,6 +1,10 @@
 export { OpenTimeSeries, timeseriesChain } from "./series";
 export { OpenFrame } from "./frame";
-export { ReturnSimulation, randomGenerator } from "./simulation";
+export {
+  ReturnSimulation,
+  randomGenerator,
+  type RandomGenerator,
+} from "./simulation";
 export {
   dateFix,
   dateToStr,

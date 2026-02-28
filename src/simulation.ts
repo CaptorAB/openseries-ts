@@ -1,5 +1,7 @@
 import { generateCalendarDateRange } from "./datefixer";
 
+export type RandomGenerator = () => number;
+
 function createRng(seed?: number): () => number {
   let s = seed ?? Math.floor(Math.random() * 0xffffffff);
   return () => {
@@ -26,6 +28,19 @@ function boxMuller(rng: () => number): () => number {
   };
 }
 
+function samplePoisson(lamda: number, rng: () => number): number {
+  const u = rng();
+  let p = Math.exp(-lamda);
+  let s = p;
+  let k = 0;
+  while (u > s) {
+    k++;
+    p *= lamda / k;
+    s += p;
+  }
+  return k;
+}
+
 export class ReturnSimulation {
   readonly numberOfSims: number;
   readonly tradingDays: number;
@@ -34,6 +49,9 @@ export class ReturnSimulation {
   readonly meanAnnualVol: number;
   readonly dframe: number[][];
   readonly seed?: number;
+  readonly jumpsLamda: number;
+  readonly jumpsSigma: number;
+  readonly jumpsMu: number;
 
   constructor(params: {
     number_of_sims: number;
@@ -43,6 +61,9 @@ export class ReturnSimulation {
     mean_annual_vol: number;
     dframe: number[][];
     seed?: number;
+    jumps_lamda?: number;
+    jumps_sigma?: number;
+    jumps_mu?: number;
   }) {
     this.numberOfSims = params.number_of_sims;
     this.tradingDays = params.trading_days;
@@ -51,6 +72,9 @@ export class ReturnSimulation {
     this.meanAnnualVol = params.mean_annual_vol;
     this.dframe = params.dframe;
     this.seed = params.seed;
+    this.jumpsLamda = params.jumps_lamda ?? 0;
+    this.jumpsSigma = params.jumps_sigma ?? 0;
+    this.jumpsMu = params.jumps_mu ?? 0;
   }
 
   get results(): number[][] {
@@ -145,19 +169,100 @@ export class ReturnSimulation {
     });
   }
 
+  static fromLognormal(
+    number_of_sims: number,
+    mean_annual_return: number,
+    mean_annual_vol: number,
+    trading_days: number,
+    trading_days_in_year = 252,
+    seed?: number,
+  ): ReturnSimulation {
+    const rng = boxMuller(createRng(seed));
+    const mu = mean_annual_return / trading_days_in_year;
+    const sigma = mean_annual_vol / Math.sqrt(trading_days_in_year);
+    const dframe: number[][] = [];
+    for (let i = 0; i < number_of_sims; i++) {
+      const row: number[] = [];
+      for (let j = 0; j < trading_days; j++) {
+        const z = rng();
+        row.push(Math.exp(mu + sigma * z) - 1);
+      }
+      dframe.push(row);
+    }
+    return new ReturnSimulation({
+      number_of_sims,
+      trading_days,
+      trading_days_in_year,
+      mean_annual_return,
+      mean_annual_vol,
+      dframe,
+      seed,
+    });
+  }
+
+  static fromMertonJumpGbm(
+    number_of_sims: number,
+    trading_days: number,
+    mean_annual_return: number,
+    mean_annual_vol: number,
+    jumps_lamda: number,
+    jumps_sigma = 0,
+    jumps_mu = 0,
+    trading_days_in_year = 252,
+    seed?: number,
+  ): ReturnSimulation {
+    const uniformRng = createRng(seed);
+    const normalRng = boxMuller(() => uniformRng());
+    const sigmaDaily = mean_annual_vol / Math.sqrt(trading_days_in_year);
+    const lamdaDaily = jumps_lamda / trading_days_in_year;
+    const drift =
+      (mean_annual_return -
+        0.5 * mean_annual_vol ** 2 -
+        jumps_lamda * (jumps_mu + jumps_sigma ** 2)) /
+      trading_days_in_year;
+
+    const dframe: number[][] = [];
+    for (let i = 0; i < number_of_sims; i++) {
+      const row: number[] = [];
+      for (let j = 0; j < trading_days; j++) {
+        const wiener = sigmaDaily * normalRng();
+        const nJumps = samplePoisson(lamdaDaily, uniformRng);
+        const jumpNormal = nJumps === 0 ? 0 : jumps_mu + jumps_sigma * normalRng();
+        const poissonJumps = nJumps * jumpNormal;
+        row.push(drift + wiener + poissonJumps);
+      }
+      row[0] = 0;
+      dframe.push(row);
+    }
+    return new ReturnSimulation({
+      number_of_sims,
+      trading_days,
+      trading_days_in_year,
+      mean_annual_return,
+      mean_annual_vol,
+      dframe,
+      seed,
+      jumps_lamda,
+      jumps_sigma,
+      jumps_mu,
+    });
+  }
+
   toDataFrame(
     name: string,
-    options?: { start?: string; end?: string },
+    options?: { start?: string; end?: string; asReturns?: boolean },
   ): { dates: string[]; columns: { name: string; values: number[] }[] } {
     const dates = generateCalendarDateRange(this.tradingDays, options);
+    const asReturns = options?.asReturns !== false;
+    const data = asReturns ? this.dframe : this.results;
     const columns: { name: string; values: number[] }[] = [];
     if (this.numberOfSims === 1) {
-      columns.push({ name, values: this.results[0] });
+      columns.push({ name, values: data[0].map((v) => v) });
     } else {
       for (let i = 0; i < this.numberOfSims; i++) {
         columns.push({
           name: `${name}_${i}`,
-          values: this.results[i],
+          values: data[i].map((v) => v),
         });
       }
     }

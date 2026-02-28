@@ -17,23 +17,33 @@ export function generateCalendarDateRange(
     throw new Error("trading_days must be greater than zero");
   }
   const result: string[] = [];
-  let current: Date;
-  if (options?.start) {
-    current = dateFix(options.start);
-  } else if (options?.end) {
-    current = dateFix(options.end);
-    current.setDate(current.getDate() - tradingDays * 2);
-  } else {
-    current = new Date();
-  }
-  let count = 0;
-  while (count < tradingDays) {
-    const day = current.getDay();
-    if (day !== 0 && day !== 6) {
-      result.push(dateToStr(current));
-      count++;
+  if (options?.end) {
+    const current = dateFix(options.end);
+    const temp: string[] = [];
+    while (temp.length < tradingDays) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) {
+        temp.push(dateToStr(current));
+      }
+      current.setDate(current.getDate() - 1);
     }
-    current.setDate(current.getDate() + 1);
+    result.push(...temp.reverse());
+  } else {
+    let current: Date;
+    if (options?.start) {
+      current = dateFix(options.start);
+    } else {
+      current = new Date();
+    }
+    let count = 0;
+    while (count < tradingDays) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) {
+        result.push(dateToStr(current));
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
   }
   return result;
 }
