@@ -1,7 +1,9 @@
 "use strict";
+var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __export = (target, all) => {
   for (var name in all)
@@ -15,6 +17,14 @@ var __copyProps = (to, from, except, desc) => {
   }
   return to;
 };
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/index.ts
@@ -34,12 +44,19 @@ __export(index_exports, {
   efficientFrontier: () => efficientFrontier,
   fetchCaptorSeries: () => fetchCaptorSeries,
   fetchCaptorSeriesBatch: () => fetchCaptorSeriesBatch,
+  filterBusinessDays: () => filterBusinessDays,
+  filterToBusinessDays: () => filterToBusinessDays,
   generateCalendarDateRange: () => generateCalendarDateRange,
+  isBusinessDay: () => isBusinessDay,
+  lastBusinessDayOfMonth: () => lastBusinessDayOfMonth,
+  lastBusinessDayOfYear: () => lastBusinessDayOfYear,
   mean: () => mean,
   offsetBusinessDays: () => offsetBusinessDays,
   pctChange: () => pctChange,
+  prevBusinessDay: () => prevBusinessDay,
   quantile: () => quantile,
   randomGenerator: () => randomGenerator,
+  resampleToPeriodEnd: () => resampleToPeriodEnd,
   simulatePortfolios: () => simulatePortfolios,
   std: () => std,
   timeseriesChain: () => timeseriesChain
@@ -1161,6 +1178,107 @@ function randomGenerator(seed) {
   return createRng(seed);
 }
 
+// src/bizcalendar.ts
+var import_date_holidays = __toESM(require("date-holidays"), 1);
+function parseDate2(s) {
+  return /* @__PURE__ */ new Date(s + "T12:00:00Z");
+}
+function isWeekend(dateStr) {
+  const d = parseDate2(dateStr);
+  const day = d.getUTCDay();
+  return day === 0 || day === 6;
+}
+function createHolidayCheckers(countries) {
+  const codes = Array.isArray(countries) ? countries : [countries];
+  return codes.map((c) => {
+    const hd = new import_date_holidays.default(c);
+    return (dateStr) => {
+      const result = hd.isHoliday(parseDate2(dateStr));
+      return result !== false && Array.isArray(result) && result.length > 0;
+    };
+  });
+}
+function isHoliday(dateStr, checkers) {
+  return checkers.some((check) => check(dateStr));
+}
+function filterBusinessDays(dates, countries) {
+  const checkers = createHolidayCheckers(countries);
+  return dates.filter((d) => !isWeekend(d) && !isHoliday(d, checkers));
+}
+function isBusinessDay(dateStr, countries) {
+  if (isWeekend(dateStr)) return false;
+  const checkers = createHolidayCheckers(countries);
+  return !isHoliday(dateStr, checkers);
+}
+function prevBusinessDay(dateStr, countries) {
+  const d = parseDate2(dateStr);
+  const checkers = createHolidayCheckers(countries);
+  while (true) {
+    const str = dateToStr2(d);
+    if (!isWeekend(str) && !isHoliday(str, checkers)) return str;
+    d.setUTCDate(d.getUTCDate() - 1);
+  }
+}
+function lastBusinessDayOfMonth(year, month, countries) {
+  const lastDay = new Date(Date.UTC(year, month, 0));
+  const str = dateToStr2(lastDay);
+  return prevBusinessDay(str, countries);
+}
+function lastBusinessDayOfYear(year, countries) {
+  return lastBusinessDayOfMonth(year, 12, countries);
+}
+function getWeekKey(dateStr) {
+  const d = parseDate2(dateStr);
+  const startOfYear = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const msPerWeek = 7 * 24 * 60 * 60 * 1e3;
+  const weekNum = Math.floor(
+    (d.getTime() - startOfYear.getTime()) / msPerWeek
+  );
+  return `${d.getUTCFullYear()}-W${weekNum}`;
+}
+function resampleToPeriodEnd(dates, columns, freq, countries) {
+  const checkers = createHolidayCheckers(countries);
+  const isBiz = (d) => !isWeekend(d) && !isHoliday(d, checkers);
+  const outDates = [];
+  const outCols = columns.map(() => []);
+  const getPeriodKey = (dateStr) => {
+    const [y, m] = dateStr.split("-").map(Number);
+    if (freq === "WE") return getWeekKey(dateStr);
+    if (freq === "YE") return `${y}`;
+    if (freq === "QE") return `${y}-Q${Math.ceil(m / 3)}`;
+    return dateStr.slice(0, 7);
+  };
+  let i = 0;
+  while (i < dates.length) {
+    const periodKey = getPeriodKey(dates[i]);
+    let lastBizIdx = -1;
+    let j = i;
+    while (j < dates.length && getPeriodKey(dates[j]) === periodKey) {
+      if (isBiz(dates[j])) lastBizIdx = j;
+      j++;
+    }
+    if (lastBizIdx >= 0) {
+      outDates.push(dates[lastBizIdx]);
+      for (let c = 0; c < columns.length; c++) {
+        outCols[c].push(columns[c][lastBizIdx]);
+      }
+    }
+    i = j;
+  }
+  return { dates: outDates, columns: outCols };
+}
+function filterToBusinessDays(dates, columns, countries) {
+  const checkers = createHolidayCheckers(countries);
+  const indices = [];
+  for (let i = 0; i < dates.length; i++) {
+    if (!isWeekend(dates[i]) && !isHoliday(dates[i], checkers)) indices.push(i);
+  }
+  return {
+    dates: indices.map((i) => dates[i]),
+    columns: columns.map((col) => indices.map((i) => col[i]))
+  };
+}
+
 // src/portfoliotools.ts
 function simulatePortfolios(frame, numPorts, seed) {
   const rets = frame.tsdf.columns.map((col) => {
@@ -1424,12 +1542,19 @@ async function fetchCaptorSeriesBatch(ids) {
   efficientFrontier,
   fetchCaptorSeries,
   fetchCaptorSeriesBatch,
+  filterBusinessDays,
+  filterToBusinessDays,
   generateCalendarDateRange,
+  isBusinessDay,
+  lastBusinessDayOfMonth,
+  lastBusinessDayOfYear,
   mean,
   offsetBusinessDays,
   pctChange,
+  prevBusinessDay,
   quantile,
   randomGenerator,
+  resampleToPeriodEnd,
   simulatePortfolios,
   std,
   timeseriesChain

@@ -14,12 +14,15 @@
  * Options:
  *   --filename "report.html"   Output filename (default: report.html in temp dir)
  *   --no-open                  Do not auto-open in browser
+ *   --countries "SE"           Country code(s) for holiday calendar, comma-separated (default: SE)
  */
 
 const CAPTOR_LOGO_URL = "https://sales.captor.se/captor_logo_sv_1600_icketransparent.png";
 
 const IRIS_ID = "5b72a10c23d27735104e0576";
 const BENCHMARK_ID = "63892890473ba6918f4ee954";
+
+const DEFAULT_COUNTRIES = ["SE"];
 
 import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -29,6 +32,13 @@ import { fetchCaptorSeriesBatch } from "../src/captor";
 import { OpenTimeSeries } from "../src/series";
 import { OpenFrame } from "../src/frame";
 import { pctChange, ffill } from "../src/utils";
+import {
+  filterToBusinessDays,
+  lastBusinessDayOfMonth,
+  lastBusinessDayOfYear,
+  resampleToPeriodEnd,
+  type CountryCode,
+} from "../src/bizcalendar";
 
 function formatPct(val: number, decimals = 2): string {
   if (Number.isNaN(val)) return "";
@@ -40,67 +50,26 @@ function formatNum(val: number, decimals = 2): string {
   return val.toFixed(decimals);
 }
 
-function parseArgs(args: string[]): { filename: string; autoOpen: boolean } {
+function parseArgs(args: string[]): {
+  filename: string;
+  autoOpen: boolean;
+  countries: CountryCode[];
+} {
   let filename = "report.html";
   let autoOpen = true;
+  let countries = DEFAULT_COUNTRIES;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--filename" && args[i + 1]) {
       filename = args[i + 1];
       i++;
     } else if (args[i] === "--no-open") {
       autoOpen = false;
+    } else if (args[i] === "--countries" && args[i + 1]) {
+      countries = args[i + 1]!.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean);
+      i++;
     }
   }
-  return { filename, autoOpen };
-}
-
-/** Resample to last value per 7-day window (weekly, Python resample("7D")). */
-function resampleWeekly(
-  dates: string[],
-  columns: number[][],
-): { dates: string[]; columns: number[][] } {
-  const outDates: string[] = [];
-  const outCols = columns.map(() => [] as number[]);
-  let i = 0;
-  while (i < dates.length) {
-    const d = new Date(dates[i]! + "T12:00:00Z");
-    const weekEnd = new Date(d);
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const endStr = weekEnd.toISOString().slice(0, 10);
-    let j = i;
-    while (j < dates.length && dates[j]! <= endStr) j++;
-    const lastIdx = j - 1;
-    if (lastIdx >= i) {
-      outDates.push(dates[lastIdx]!);
-      for (let c = 0; c < columns.length; c++) {
-        outCols[c].push(columns[c][lastIdx]!);
-      }
-    }
-    i = j;
-  }
-  return { dates: outDates, columns: outCols };
-}
-
-/** Resample to last value per month (Python resample("ME")). */
-function resampleMonthly(
-  dates: string[],
-  columns: number[][],
-): { dates: string[]; columns: number[][] } {
-  const outDates: string[] = [];
-  const outCols = columns.map(() => [] as number[]);
-  let i = 0;
-  while (i < dates.length) {
-    const ym = dates[i]!.slice(0, 7); // YYYY-MM
-    let j = i;
-    while (j < dates.length && dates[j]!.slice(0, 7) === ym) j++;
-    const lastIdx = j - 1;
-    outDates.push(dates[lastIdx]!);
-    for (let c = 0; c < columns.length; c++) {
-      outCols[c].push(columns[c][lastIdx]!);
-    }
-    i = j;
-  }
-  return { dates: outDates, columns: outCols };
+  return { filename, autoOpen, countries };
 }
 
 function computeAnnualReturns(dates: string[], values: number[]): Record<string, number> {
@@ -118,16 +87,34 @@ function computeAnnualReturns(dates: string[], values: number[]): Record<string,
   return result;
 }
 
-/** Capture ratio: upside/downside on period returns (Python uses monthly resampled data). */
-function computeCaptureRatio(assetRets: number[], benchmarkRets: number[]): number {
+/**
+ * Capture Ratio (both = up/down) using CAGR-based logic to match Python openseries.
+ * Python: (Asset CAGR in up periods / Benchmark CAGR in up) / (Asset CAGR in down / Benchmark CAGR in down)
+ */
+function computeCaptureRatioCagr(
+  assetRets: number[],
+  benchmarkRets: number[],
+  timeFactor: number,
+): number {
   if (assetRets.length !== benchmarkRets.length || assetRets.length < 2) return NaN;
-  const upIdx = benchmarkRets.map((r, i) => (r > 0 ? i : -1)).filter((i) => i >= 0);
-  const downIdx = benchmarkRets.map((r, i) => (r < 0 ? i : -1)).filter((i) => i >= 0);
-  const upside = upIdx.length > 0 ? upIdx.reduce((s, i) => s + assetRets[i], 0) / upIdx.length : 0;
-  const downside =
-    downIdx.length > 0 ? downIdx.reduce((s, i) => s + assetRets[i], 0) / downIdx.length : 0;
-  if (downside >= 0 || Math.abs(downside) < 1e-10) return NaN;
-  return upside / downside;
+  const upMask = benchmarkRets.map((r) => r > 0);
+  const downMask = benchmarkRets.map((r) => r < 0);
+  const cagr = (rets: number[], mask: boolean[]): number => {
+    const masked = rets
+      .map((r, i) => (mask[i] ? r + 1 : NaN))
+      .filter((x) => !Number.isNaN(x));
+    if (masked.length === 0) return 0;
+    const prod = masked.reduce((a, b) => a * b, 1);
+    const exponent = 1 / (masked.length / timeFactor);
+    return prod ** exponent - 1;
+  };
+  const upRtrn = cagr(assetRets, upMask);
+  const upIdxReturn = cagr(benchmarkRets, upMask);
+  const downReturn = cagr(assetRets, downMask);
+  const downIdxReturn = cagr(benchmarkRets, downMask);
+  if (Math.abs(upIdxReturn) < 1e-12 || Math.abs(downIdxReturn) < 1e-12) return NaN;
+  if (downReturn >= 0 || Math.abs(downReturn) < 1e-12) return NaN;
+  return (upRtrn / upIdxReturn) / (downReturn / downIdxReturn);
 }
 
 function generateHtml(
@@ -300,7 +287,7 @@ function generateHtml(
 }
 
 async function main(): Promise<void> {
-  const { filename, autoOpen } = parseArgs(process.argv.slice(2));
+  const { filename, autoOpen, countries } = parseArgs(process.argv.slice(2));
 
   console.log("Fetching data from Captor API...");
   const raw = await fetchCaptorSeriesBatch([IRIS_ID, BENCHMARK_ID]);
@@ -314,10 +301,16 @@ async function main(): Promise<void> {
   frame.mergeSeries("inner"); // trunc_frame equivalent (inner join)
   // value_nan_handle: ffill is applied in alignSeriesToCommonDates
 
-  const benchmarkIdx = 1;
-  const { dates, columns } = frame.tsdf;
+  const { dates: rawDates, columns: rawColumns } = frame.tsdf;
+  const colsFfilled = rawColumns.map((col) => ffill(col));
 
-  const colsFfilled = columns.map((col) => ffill(col));
+  const { dates, columns } = filterToBusinessDays(
+    rawDates,
+    colsFfilled,
+    countries,
+  );
+
+  const benchmarkIdx = 1;
 
   const toCumret = (vals: number[]): number[] => {
     const rets = pctChange(vals);
@@ -328,7 +321,14 @@ async function main(): Promise<void> {
     return cum.map((c) => (c / base) * 100);
   };
 
-  const cumretCols = colsFfilled.map(toCumret);
+  const cumretCols = columns.map(toCumret);
+
+  const bizDayFrame = new OpenFrame(
+    cumretCols.map((col, i) =>
+      OpenTimeSeries.fromArrays(frame.columnLabels[i], dates, col),
+    ),
+  );
+  bizDayFrame.mergeSeries("inner");
 
   const alignedSeriesData = frame.columnLabels.map((name, i) => ({
     name,
@@ -336,9 +336,7 @@ async function main(): Promise<void> {
     values: cumretCols[i],
   }));
 
-  const alignedSeries = cumretCols.map((col, i) =>
-    OpenTimeSeries.fromArrays(frame.columnLabels[i], dates, col),
-  );
+  const alignedSeries = bizDayFrame.constituents;
 
   const stats: { metric: string; values: (string | number)[] }[] = [];
   const addRow = (label: string, vals: (string | number)[]) => {
@@ -349,18 +347,21 @@ async function main(): Promise<void> {
     "Return (CAGR)",
     alignedSeries.map((s) => formatPct(s.geoRet())),
   );
-  const lastDate = frame.lastIdx;
-  const lastYear = lastDate.slice(0, 4);
-  const lastMonth = lastDate.slice(5, 7);
+  const lastDate = dates[dates.length - 1]!;
+  const lastYear = parseInt(lastDate.slice(0, 4), 10);
+  const lastMonth = parseInt(lastDate.slice(5, 7), 10);
+  const ytdFrom = lastBusinessDayOfYear(lastYear - 1, countries);
+  const mtdFrom =
+    lastMonth > 1
+      ? lastBusinessDayOfMonth(lastYear, lastMonth - 1, countries)
+      : lastBusinessDayOfMonth(lastYear - 1, 12, countries);
   addRow(
     "Year-to-Date",
-    alignedSeries.map((s) => formatPct(s.valueRet({ fromDate: `${lastYear}-01-01`, toDate: lastDate }))),
+    alignedSeries.map((s) => formatPct(s.valueRet({ fromDate: ytdFrom, toDate: lastDate }))),
   );
   addRow(
     "Month-to-Date",
-    alignedSeries.map((s) =>
-      formatPct(s.valueRet({ fromDate: `${lastYear}-${lastMonth}-01`, toDate: lastDate })),
-    ),
+    alignedSeries.map((s) => formatPct(s.valueRet({ fromDate: mtdFrom, toDate: lastDate }))),
   );
   addRow(
     "Volatility",
@@ -375,7 +376,7 @@ async function main(): Promise<void> {
     alignedSeries.map((s) => formatNum(s.sortinoRatio(0, 0))),
   );
 
-  const weeklyResampled = resampleWeekly(dates, colsFfilled);
+  const weeklyResampled = resampleToPeriodEnd(dates, columns, "WE", countries);
   const weeklyFrame = new OpenFrame(
     weeklyResampled.columns.map((col, i) =>
       OpenTimeSeries.fromArrays(frame.columnLabels[i], weeklyResampled.dates, col),
@@ -383,10 +384,10 @@ async function main(): Promise<void> {
   );
   weeklyFrame.mergeSeries("inner");
 
-  const jensenAlpha = frame.jensenAlpha(0, benchmarkIdx);
+  const jensenAlpha = bizDayFrame.jensenAlpha(0, benchmarkIdx);
   addRow("Jensen's Alpha", [formatPct(jensenAlpha), ""]);
 
-  const ir = frame.infoRatio(benchmarkIdx);
+  const ir = bizDayFrame.infoRatio(benchmarkIdx);
   addRow("Information Ratio", [formatNum(ir[0]), ""]);
 
   const teWeekly = weeklyFrame.trackingError(benchmarkIdx);
@@ -395,22 +396,29 @@ async function main(): Promise<void> {
   const betaWeekly = weeklyFrame.beta(0, benchmarkIdx);
   addRow("Index Beta (weekly)", [formatNum(betaWeekly), ""]);
 
-  const monthlyResampled = resampleMonthly(dates, colsFfilled);
+  const monthlyResampled = resampleToPeriodEnd(dates, columns, "ME", countries);
   const monthlyRets = monthlyResampled.columns.map((col) => {
     const r = pctChange(col);
     r[0] = 0;
     return r.slice(1);
   });
-  const captureRatio = computeCaptureRatio(monthlyRets[0], monthlyRets[benchmarkIdx]);
+  const captureRatio = computeCaptureRatioCagr(
+    monthlyRets[0],
+    monthlyRets[benchmarkIdx],
+    12,
+  );
   addRow("Capture Ratio (monthly)", [formatNum(captureRatio), ""]);
 
-  addRow("Worst Month", [
-    formatPct(alignedSeries[0].worst(21)),
-    formatPct(alignedSeries[1].worst(21)),
-  ]);
+  const worstMonths = monthlyRets.map((rets) =>
+    rets.length > 0 ? Math.min(...rets) : NaN,
+  );
+  addRow(
+    "Worst Month",
+    worstMonths.map((v) => (Number.isNaN(v) ? "" : formatPct(v))),
+  );
 
-  addRow("Comparison Start", [frame.firstIdx, frame.firstIdx]);
-  addRow("Comparison End", [frame.lastIdx, frame.lastIdx]);
+  addRow("Comparison Start", [dates[0], dates[0]]);
+  addRow("Comparison End", [lastDate, lastDate]);
 
   const fullHtml = generateHtml(alignedSeriesData, "Captor Iris Bond", stats, CAPTOR_LOGO_URL);
 

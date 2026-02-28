@@ -225,6 +225,61 @@ declare function generateCalendarDateRange(tradingDays: number, options?: {
 /** Offsets a date by a number of business days. */
 declare function offsetBusinessDays(ddate: Date, days: number): Date;
 
+/**
+ * Business calendar utilities with holiday awareness via date-holidays.
+ *
+ * Supports filtering dates to business days (excluding weekends and holidays),
+ * finding last business day of period, and period-end resampling.
+ */
+type CountryCode = string;
+/**
+ * Filters an array of date strings to keep only business days.
+ * Business day = not weekend (Sat/Sun) and not a holiday in any of the specified countries.
+ *
+ * @param dates - Array of date strings (YYYY-MM-DD)
+ * @param countries - Country code(s) for holiday calendar, e.g. "SE", "US", ["SE", "NO"]
+ * @returns Array of business-day date strings (subsequence of input, preserving order)
+ */
+declare function filterBusinessDays(dates: string[], countries: CountryCode | CountryCode[]): string[];
+/**
+ * Checks whether a date is a business day.
+ */
+declare function isBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): boolean;
+/**
+ * Finds the last business day on or before the given date.
+ */
+declare function prevBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): string;
+/**
+ * Last business day of the given month (1-indexed).
+ */
+declare function lastBusinessDayOfMonth(year: number, month: number, countries: CountryCode | CountryCode[]): string;
+/**
+ * Last business day of the given year.
+ */
+declare function lastBusinessDayOfYear(year: number, countries: CountryCode | CountryCode[]): string;
+type ResampleFreq = "WE" | "ME" | "QE" | "YE";
+/**
+ * Resamples dates and columns to end-of-business period frequency.
+ * Each period takes the last observation that falls on a business day within that period.
+ *
+ * @param dates - Sorted array of date strings
+ * @param columns - Value columns (same length as dates)
+ * @param freq - WE (week-end), ME (month-end), QE (quarter-end), YE (year-end)
+ * @param countries - Country code(s) for holiday filtering
+ */
+declare function resampleToPeriodEnd(dates: string[], columns: number[][], freq: ResampleFreq, countries: CountryCode | CountryCode[]): {
+    dates: string[];
+    columns: number[][];
+};
+/**
+ * Filters (dates, columns) to retain only rows where the date is a business day.
+ * Preserves alignment across all columns.
+ */
+declare function filterToBusinessDays(dates: string[], columns: number[][], countries: CountryCode | CountryCode[]): {
+    dates: string[];
+    columns: number[][];
+};
+
 interface SimulatedPortfolio {
     stdev: number;
     ret: number;
@@ -283,4 +338,4 @@ declare function quantile(arr: number[], q: number, sorted?: boolean): number;
 /** Returns period-over-period percentage change. First element is 0. */
 declare function pctChange(values: number[]): number[];
 
-export { type CaptorSeriesResponse, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, generateCalendarDateRange, mean, offsetBusinessDays, pctChange, quantile, randomGenerator, simulatePortfolios, std, timeseriesChain };
+export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, prevBusinessDay, quantile, randomGenerator, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };

@@ -9,7 +9,8 @@
  *        npm run report -- --title "Captor All Bond Sweden Portfolio"
  *
  * Options:
- *   --title "Title"  Custom report title (default: "Captor Portfolio Report")
+ *   --title "Title"       Custom report title (default: "Captor Portfolio Report")
+ *   --countries "US,SE"   Country codes for business-day resampling (default: "SE")
  *
  * Default IDs: 638f681e0c2f4c8d28a13392 5b72a10c23d27735104e0576 5c1115fbce5b131cf0b224fc
  */
@@ -24,6 +25,11 @@ import { fetchCaptorSeriesBatch } from "../src/captor";
 import { OpenTimeSeries } from "../src/series";
 import { OpenFrame } from "../src/frame";
 import { pctChange, ffill } from "../src/utils";
+import {
+  filterToBusinessDays,
+  resampleToPeriodEnd,
+  type CountryCode,
+} from "../src/bizcalendar";
 
 function formatPct(val: number, decimals = 2): string {
   if (Number.isNaN(val)) return "";
@@ -50,19 +56,35 @@ function computeAnnualReturns(dates: string[], values: number[]): Record<string,
   return result;
 }
 
-function computeCaptureRatio(
+/**
+ * Capture Ratio (both = up/down) using CAGR-based logic to match Python openseries.
+ * Python: (Asset CAGR in up periods / Benchmark CAGR in up) / (Asset CAGR in down / Benchmark CAGR in down)
+ * Requires monthly resampled returns; Python resamples to ME before capture_ratio_func.
+ */
+function computeCaptureRatioCagr(
   assetRets: number[],
   benchmarkRets: number[],
-  periodsInYear: number,
+  timeFactor: number,
 ): number {
   if (assetRets.length !== benchmarkRets.length || assetRets.length < 2) return NaN;
-  const upIdx = benchmarkRets.map((r, i) => (r > 0 ? i : -1)).filter((i) => i >= 0);
-  const downIdx = benchmarkRets.map((r, i) => (r < 0 ? i : -1)).filter((i) => i >= 0);
-  const upside = upIdx.length > 0 ? upIdx.reduce((s, i) => s + assetRets[i], 0) / upIdx.length : 0;
-  const downside =
-    downIdx.length > 0 ? downIdx.reduce((s, i) => s + assetRets[i], 0) / downIdx.length : 0;
-  if (downside >= 0 || Math.abs(downside) < 1e-10) return NaN;
-  return (upside * periodsInYear) / (downside * periodsInYear);
+  const upMask = benchmarkRets.map((r) => r > 0);
+  const downMask = benchmarkRets.map((r) => r < 0);
+  const cagr = (rets: number[], mask: boolean[]): number => {
+    const masked = rets
+      .map((r, i) => (mask[i] ? r + 1 : NaN))
+      .filter((x) => !Number.isNaN(x));
+    if (masked.length === 0) return 0;
+    const prod = masked.reduce((a, b) => a * b, 1);
+    const exponent = 1 / (masked.length / timeFactor);
+    return prod ** exponent - 1;
+  };
+  const upRtrn = cagr(assetRets, upMask);
+  const upIdxReturn = cagr(benchmarkRets, upMask);
+  const downReturn = cagr(assetRets, downMask);
+  const downIdxReturn = cagr(benchmarkRets, downMask);
+  if (Math.abs(upIdxReturn) < 1e-12 || Math.abs(downIdxReturn) < 1e-12) return NaN;
+  if (downReturn >= 0 || Math.abs(downReturn) < 1e-12) return NaN;
+  return (upRtrn / upIdxReturn) / (downReturn / downIdxReturn);
 }
 
 function generateHtml(
@@ -231,27 +253,35 @@ function generateHtml(
 </html>`;
 }
 
-function parseArgs(args: string[]): { title: string; ids: string[] } {
+function parseArgs(args: string[]): {
+  title: string;
+  ids: string[];
+  countries: CountryCode[];
+} {
   const defaultIds = [
     "638f681e0c2f4c8d28a13392",
     "5b72a10c23d27735104e0576",
     "5c1115fbce5b131cf0b224fc",
   ];
   let title = "Captor Portfolio Report";
+  let countries: CountryCode[] = ["SE"];
   const ids: string[] = [];
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--title" && args[i + 1]) {
       title = args[i + 1];
       i++;
+    } else if (args[i] === "--countries" && args[i + 1]) {
+      countries = args[i + 1]!.split(",").map((c) => c.trim().toUpperCase()).filter(Boolean);
+      i++;
     } else if (!args[i].startsWith("--")) {
       ids.push(args[i]);
     }
   }
-  return { title, ids: ids.length > 0 ? ids : defaultIds };
+  return { title, ids: ids.length > 0 ? ids : defaultIds, countries };
 }
 
 async function main(): Promise<void> {
-  const { title: reportTitle, ids } = parseArgs(process.argv.slice(2));
+  const { title: reportTitle, ids, countries } = parseArgs(process.argv.slice(2));
 
   console.log("Fetching data from Captor API...");
   const raw = await fetchCaptorSeriesBatch(ids);
@@ -296,7 +326,6 @@ async function main(): Promise<void> {
   addRow("Volatility", (s) => s.vol());
   addRow("Sharpe Ratio", (s) => s.retVolRatio(0));
   addRow("Sortino Ratio", (s) => s.sortinoRatio(0, 0));
-  addRow("Worst Month", (s) => s.worst(21));
 
   const ir = frame.infoRatio(benchmarkIdx);
   const te = frame.trackingError(benchmarkIdx);
@@ -321,22 +350,41 @@ async function main(): Promise<void> {
     values: betas.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
   });
 
-  const cols = frame.tsdf.columns;
-  const rets = cols.map((col) => {
-    const r = pctChange(ffill(col));
+  const { dates: rawDates, columns: rawColumns } = frame.tsdf;
+  const colsFfilled = rawColumns.map((col) => ffill(col));
+  const { dates: bizDates, columns: bizCols } = filterToBusinessDays(
+    rawDates,
+    colsFfilled,
+    countries,
+  );
+  const monthlyResampled = resampleToPeriodEnd(bizDates, bizCols, "ME", countries);
+  const monthlyRets = monthlyResampled.columns.map((col) => {
+    const r = pctChange(col);
     r[0] = 0;
-    return r;
+    return r.slice(1);
   });
-  const periodsInYear = frame.periodInAYear;
+  const timeFactor = 12;
   const captureRatios = series.map((_, i) => {
     if (i === benchmarkIdx) return NaN;
-    const ar = rets[i].slice(1);
-    const br = rets[benchmarkIdx].slice(1);
-    return computeCaptureRatio(ar, br, periodsInYear);
+    return computeCaptureRatioCagr(
+      monthlyRets[i]!,
+      monthlyRets[benchmarkIdx]!,
+      timeFactor,
+    );
   });
   stats.push({
     metric: "Capture Ratio (monthly)",
     values: captureRatios.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
+  });
+
+  const worstMonths = monthlyRets.map((rets) => {
+    if (rets.length === 0) return NaN;
+    const minRet = Math.min(...rets);
+    return minRet;
+  });
+  stats.push({
+    metric: "Worst Month",
+    values: worstMonths.map((v) => (Number.isNaN(v) ? "" : formatPct(v))),
   });
 
   stats.push({

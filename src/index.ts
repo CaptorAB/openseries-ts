@@ -16,6 +16,17 @@ export {
   offsetBusinessDays,
 } from "./datefixer";
 export {
+  filterBusinessDays,
+  filterToBusinessDays,
+  isBusinessDay,
+  lastBusinessDayOfMonth,
+  lastBusinessDayOfYear,
+  prevBusinessDay,
+  resampleToPeriodEnd,
+  type CountryCode,
+  type ResampleFreq,
+} from "./bizcalendar";
+export {
   simulatePortfolios,
   efficientFrontier,
   type SimulatedPortfolio,

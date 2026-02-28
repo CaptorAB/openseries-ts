@@ -60,4 +60,34 @@ describe("efficientFrontier", () => {
       }
     }
   });
+
+  it("handles many frontier points with divergent asset returns", () => {
+    const frame = simulatedFrame({ numAssets: 4, days: 300 });
+    const ef = efficientFrontier(frame, 800, 71, 80);
+    expect(ef.frontier.length).toBeGreaterThan(0);
+    expect(ef.maxSharpe).toBeDefined();
+  });
+
+  it("exercises projected gradient boundary with extreme mean spread", () => {
+    // Assets with very different mean returns can cause analytic solution to have
+    // negative weights; target near rMax/rMin triggers boundary branches (289-293)
+    const sim = ReturnSimulation.fromGbm(3, 0.05, 0.12, 252, 252, 99);
+    const dc = sim.toDateColumns("Asset", { end: "2020-12-31" });
+    const toPrice = (rets: number[]) => {
+      const out = [100];
+      for (let i = 1; i < rets.length; i++) {
+        out.push(out[i - 1]! * (1 + rets[i]!));
+      }
+      return out;
+    };
+    const r1 = dc.columns[0].values;
+    const r2 = dc.columns[1].values.map((r) => r * 0.2); // low mean
+    const r3 = dc.columns[2].values.map((r) => r * 2 + 0.01); // high mean
+    const s1 = OpenTimeSeries.fromArrays("A", dc.dates, toPrice(r1));
+    const s2 = OpenTimeSeries.fromArrays("B", dc.dates, toPrice(r2));
+    const s3 = OpenTimeSeries.fromArrays("C", dc.dates, toPrice(r3));
+    const frame = new OpenFrame([s1, s2, s3], [1 / 3, 1 / 3, 1 / 3]);
+    const ef = efficientFrontier(frame, 500, 99, 60);
+    expect(ef.frontier.length).toBeGreaterThan(0);
+  });
 });

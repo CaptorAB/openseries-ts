@@ -94,6 +94,18 @@ describe("OpenTimeSeries", () => {
     expect(Number.isFinite(ret)).toBe(true);
   });
 
+  it("arithmeticRet with monthsFromLast throws when start after last date", () => {
+    const s = OpenTimeSeries.fromArrays(
+      "Short",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [100, 101, 102],
+    );
+    // Negative monthsFromLast = start date after last date -> findIndex returns -1
+    expect(() => s.arithmeticRet({ monthsFromLast: -12 })).toThrow(
+      DateAlignmentError,
+    );
+  });
+
   it("arithmeticRet with fromDate and toDate", () => {
     const s = simulatedSeries("Test");
     const ret = s.arithmeticRet({ fromDate: "2020-06-01", toDate: "2020-09-01" });
@@ -126,6 +138,18 @@ describe("OpenTimeSeries", () => {
     series.toCumret();
     expect(series.valuetype).toBe(ValueType.PRICE);
     expect(series.getTsdfValues()[0]).toBeCloseTo(1);
+  });
+
+  it("toCumret from RTRN (else branch) uses returns directly", () => {
+    const dates = ["2020-01-01", "2020-01-02", "2020-01-03"];
+    const returns = [0, 0.05, -0.03]; // RTRN series
+    const series = OpenTimeSeries.fromArrays("Test", dates, returns, {
+      valuetype: ValueType.RTRN,
+    });
+    series.toCumret();
+    expect(series.valuetype).toBe(ValueType.PRICE);
+    expect(series.getTsdfValues()[0]).toBeCloseTo(1);
+    expect(series.getTsdfValues().length).toBe(3);
   });
 
   describe("numerical results (simulated seed 71)", () => {
