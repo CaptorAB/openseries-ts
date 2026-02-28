@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { OpenTimeSeries, timeseriesChain } from "../src/series";
 import { ValueType } from "../src/types";
-import { DateAlignmentError, InitialValueZeroError } from "../src/types";
+import { DateAlignmentError, InitialValueZeroError, ResampleDataLossError } from "../src/types";
 import { simulatedSeries } from "./fixtures";
 import { ReturnSimulation } from "../src/simulation";
 import { cumProd } from "../src/utils";
@@ -271,6 +271,63 @@ describe("OpenTimeSeries", () => {
       expect(s.getTsdfValues()[0]).toBe(0);
       expect(to9(s.getTsdfValues()[s.length - 1])).toBe("-0.003782338");
       expect(Math.min(...s.getTsdfValues())).toBeCloseTo(-0.059536861);
+    });
+  });
+
+  describe("resampleToPeriodEnd and filterToBusinessDays", () => {
+    it("filterToBusinessDays reduces observations to business days only", () => {
+      const s = simulatedSeries("Test");
+      const before = s.length;
+      s.filterToBusinessDays();
+      expect(s.length).toBeLessThanOrEqual(before);
+      expect(s.length).toBeGreaterThan(0);
+    });
+
+    it("resampleToPeriodEnd reduces to month-end frequency", () => {
+      const s = simulatedSeries("Test");
+      const before = s.length;
+      s.resampleToPeriodEnd("ME");
+      expect(s.length).toBeLessThan(before);
+      expect(s.length).toBeGreaterThan(0);
+    });
+
+    it("resampleToPeriodEnd throws ResampleDataLossError on RTRN series", () => {
+      const s = simulatedSeries("Test");
+      s.valueToRet();
+      expect(() => s.resampleToPeriodEnd("ME")).toThrow(ResampleDataLossError);
+      expect(() => s.resampleToPeriodEnd("ME")).toThrow("return series");
+    });
+
+    it("resampleToPeriodEnd accepts WE, QE, YE", () => {
+      const s = simulatedSeries("Test", { days: 400 });
+      s.resampleToPeriodEnd("WE");
+      expect(s.length).toBeGreaterThan(0);
+      const s2 = simulatedSeries("Test2", { days: 400 });
+      s2.resampleToPeriodEnd("QE");
+      expect(s2.length).toBeGreaterThan(0);
+      const s3 = simulatedSeries("Test3", { days: 400 });
+      s3.resampleToPeriodEnd("YE");
+      expect(s3.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("worstMonth", () => {
+    it("worstMonth returns a number for price series", () => {
+      const s = simulatedSeries("Test");
+      const wm = s.worstMonth();
+      expect(typeof wm).toBe("number");
+      expect(Number.isFinite(wm) || Number.isNaN(wm)).toBe(true);
+    });
+
+    it("worstMonth throws ResampleDataLossError on RTRN series", () => {
+      const s = simulatedSeries("Test");
+      s.valueToRet();
+      expect(() => s.worstMonth()).toThrow(ResampleDataLossError);
+    });
+
+    it("worstMonth returns NaN for short series", () => {
+      const s = OpenTimeSeries.fromArrays("Short", ["2020-01-01", "2020-01-02"], [100, 101]);
+      expect(s.worstMonth()).toBeNaN();
     });
   });
 });

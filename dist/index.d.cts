@@ -29,6 +29,9 @@ declare class NoWeightsError extends Error {
 declare class IncorrectArgumentComboError extends Error {
     constructor(message: string);
 }
+declare class ResampleDataLossError extends Error {
+    constructor(message: string);
+}
 
 /**
  * Business calendar utilities with holiday awareness via date-holidays.
@@ -183,6 +186,18 @@ declare class OpenTimeSeries {
     ewmaVolFunc(lmbda?: number, dayChunk?: number, opts?: DateRangeOptions): number[];
     ewmaVarFunc(lmbda?: number, dayChunk?: number, level?: number, opts?: DateRangeOptions): number[];
     setNewLabel(lvlZero?: string, lvlOne?: ValueType): this;
+    /** Filters tsdf to retain only business days. Mutates in place. */
+    filterToBusinessDays(): this;
+    /**
+     * Resamples to business period-end frequency (week, month, quarter, year).
+     * Mutates tsdf. Throws on return series (use price series).
+     */
+    resampleToPeriodEnd(freq?: ResampleFreq): this;
+    /**
+     * Worst single calendar month return (business-month-end based).
+     * Uses filterToBusinessDays + resampleToPeriodEnd(ME) + min of monthly returns.
+     */
+    worstMonth(opts?: DateRangeOptions): number;
     toDrawdownSeries(): this;
 }
 /**
@@ -226,6 +241,34 @@ declare class OpenFrame {
     beta(assetColumn: number, marketColumn: number): number;
     jensenAlpha(assetColumn: number, marketColumn: number, riskfreeRate?: number): number;
     addTimeseries(series: OpenTimeSeries): this;
+    /** Filters tsdf to retain only business days. Mutates in place. */
+    filterToBusinessDays(): this;
+    /**
+     * Resamples all constituents to business period-end frequency, then re-merges.
+     * Throws if any constituent is a return series.
+     */
+    resampleToPeriodEnd(freq?: ResampleFreq): this;
+    /**
+     * Truncates frame and constituents to a common date range.
+     * @param opts - Truncation options
+     * @param opts.startCut - New first date (default: latest first date of all constituents if where includes 'before')
+     * @param opts.endCut - New last date (default: earliest last date if where includes 'after')
+     * @param opts.where - Which end(s) to truncate when cuts not provided
+     */
+    truncFrame(opts?: {
+        startCut?: string;
+        endCut?: string;
+        where?: "before" | "after" | "both";
+    }): this;
+    /**
+     * CAGR-based capture ratio vs benchmark column.
+     * @param ratio - "up" | "down" | "both" (up/down or both = up/down)
+     * @param baseColumn - Benchmark column index (-1 = last)
+     * @param opts.freq - Resample frequency for capture (default "ME")
+     */
+    captureRatio(ratio: "up" | "down" | "both", baseColumn?: number, opts?: {
+        freq?: ResampleFreq;
+    }): number[];
 }
 
 type RandomGenerator = () => number;
@@ -367,4 +410,4 @@ interface ReportOptions {
  */
 declare function reportHtml(frame: OpenFrame, options?: ReportOptions): string;
 
-export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, type ReportOptions, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };
+export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };

@@ -1,5 +1,6 @@
-import { DateAlignmentError, InitialValueZeroError, ValueType } from "./types";
+import { DateAlignmentError, InitialValueZeroError, ResampleDataLossError, ValueType } from "./types";
 import type { CountryCode } from "./bizcalendar";
+import { filterToBusinessDays, resampleToPeriodEnd, type ResampleFreq } from "./bizcalendar";
 import {
   cumProd,
   ffill,
@@ -443,6 +444,67 @@ export class OpenTimeSeries {
     if (lvlZero != null) this.label = lvlZero;
     if (lvlOne != null) this.valuetype = lvlOne;
     return this;
+  }
+
+  /** Filters tsdf to retain only business days. Mutates in place. */
+  filterToBusinessDays(): this {
+    const dates = this.getTsdfDates();
+    const columns = [this.getTsdfValues()];
+    const { dates: outDates, columns: outCols } = filterToBusinessDays(
+      dates,
+      columns,
+      this.countries,
+    );
+    this.tsdf = outDates.map((d, i) => ({ date: d, value: outCols[0][i] }));
+    return this;
+  }
+
+  /**
+   * Resamples to business period-end frequency (week, month, quarter, year).
+   * Mutates tsdf. Throws on return series (use price series).
+   */
+  resampleToPeriodEnd(freq: ResampleFreq = "ME"): this {
+    if (this.valuetype === ValueType.RTRN)
+      throw new ResampleDataLossError(
+        "Do not run resampleToPeriodEnd on return series. The operation would pick the last data point per period, not sum returns, and data would be lost.",
+      );
+    const dates = this.getTsdfDates();
+    const columns = [this.getTsdfValues()];
+    const { dates: outDates, columns: outCols } = resampleToPeriodEnd(
+      dates,
+      columns,
+      freq,
+      this.countries,
+    );
+    this.tsdf = outDates.map((d, i) => ({ date: d, value: outCols[0][i] }));
+    return this;
+  }
+
+  /**
+   * Worst single calendar month return (business-month-end based).
+   * Uses filterToBusinessDays + resampleToPeriodEnd(ME) + min of monthly returns.
+   */
+  worstMonth(opts: DateRangeOptions = {}): number {
+    const { dates, values } = this.sliceByRange(opts);
+    if (dates.length < 2) return NaN;
+    if (this.valuetype === ValueType.RTRN)
+      throw new ResampleDataLossError(
+        "worstMonth requires price series. Convert to cumret first.",
+      );
+    const filtered = filterToBusinessDays(dates, [values], this.countries);
+    if (filtered.dates.length < 2) return NaN;
+    const resampled = resampleToPeriodEnd(
+      filtered.dates,
+      filtered.columns,
+      "ME",
+      this.countries,
+    );
+    if (resampled.dates.length < 2) return NaN;
+    const vals = ffill(resampled.columns[0]);
+    const rets = pctChange(vals);
+    rets[0] = 0;
+    const monthlyRets = rets.slice(1).filter((r) => !Number.isNaN(r));
+    return monthlyRets.length === 0 ? NaN : Math.min(...monthlyRets);
   }
 
   toDrawdownSeries(): this {

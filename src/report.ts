@@ -6,13 +6,8 @@
 
 import { OpenFrame } from "./frame";
 import { OpenTimeSeries } from "./series";
-import { pctChange, ffill } from "./utils";
-import {
-  filterToBusinessDays,
-  lastBusinessDayOfMonth,
-  lastBusinessDayOfYear,
-  resampleToPeriodEnd,
-} from "./bizcalendar";
+import { ffill, pctChange } from "./utils";
+import { lastBusinessDayOfMonth, lastBusinessDayOfYear } from "./bizcalendar";
 
 export interface ReportOptions {
   title?: string;
@@ -103,6 +98,7 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
       frame.columnLabels[i]!,
       rawDates,
       colsFfilled[i]!,
+      { countries },
     ),
   );
 
@@ -170,34 +166,15 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
     values: betas.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
   });
 
-  const { dates: bizDates, columns: bizCols } = filterToBusinessDays(
-    rawDates,
-    colsFfilled,
-    countries,
-  );
-  const monthlyResampled = resampleToPeriodEnd(bizDates, bizCols, "ME", countries);
-  const monthlyRets = monthlyResampled.columns.map((col) => {
-    const r = pctChange(col);
-    r[0] = 0;
-    return r.slice(1);
-  });
-
-  const captureRatios = series.map((_, i) => {
-    if (i === benchmarkIdx) return NaN;
-    return computeCaptureRatioCagr(
-      monthlyRets[i]!,
-      monthlyRets[benchmarkIdx]!,
-      12,
-    );
-  });
+  const captureRatios = frame.captureRatio("both", benchmarkIdx);
   stats.push({
     metric: "Capture Ratio (monthly)",
-    values: captureRatios.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
+    values: captureRatios.map((v) =>
+      Number.isNaN(v) ? "" : formatNum(v),
+    ),
   });
 
-  const worstMonths = monthlyRets.map((rets) =>
-    rets.length === 0 ? NaN : Math.min(...rets),
-  );
+  const worstMonths = series.map((s) => s.worstMonth());
   stats.push({
     metric: "Worst Month",
     values: worstMonths.map((v) => (Number.isNaN(v) ? "" : formatPct(v))),

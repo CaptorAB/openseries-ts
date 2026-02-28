@@ -6,6 +6,7 @@ import {
   NoWeightsError,
   LabelsNotUniqueError,
   IncorrectArgumentComboError,
+  ResampleDataLossError,
 } from "../src/types";
 
 describe("Error classes", () => {
@@ -47,6 +48,13 @@ describe("Error classes", () => {
   it("IncorrectArgumentComboError has correct name and message", () => {
     const err = new IncorrectArgumentComboError("test message");
     expect(err.name).toBe("IncorrectArgumentComboError");
+    expect(err.message).toBe("test message");
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("ResampleDataLossError has correct name and message", () => {
+    const err = new ResampleDataLossError("test message");
+    expect(err.name).toBe("ResampleDataLossError");
     expect(err.message).toBe("test message");
     expect(err).toBeInstanceOf(Error);
   });

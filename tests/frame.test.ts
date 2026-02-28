@@ -7,6 +7,7 @@ import {
   LabelsNotUniqueError,
   MixedValuetypesError,
   NoWeightsError,
+  ResampleDataLossError,
   type LiteralPortfolioWeightings,
 } from "../src/types";
 import { simulatedFrame } from "./fixtures";
@@ -224,5 +225,95 @@ describe("OpenFrame", () => {
     const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
     const port = frame.makePortfolio("P", "max_div");
     expect(port.values.length).toBe(3);
+  });
+
+  describe("filterToBusinessDays and resampleToPeriodEnd", () => {
+    it("filterToBusinessDays reduces frame observations", () => {
+      const frame = simulatedFrame();
+      const before = frame.length;
+      frame.filterToBusinessDays();
+      expect(frame.length).toBeLessThanOrEqual(before);
+    });
+
+    it("resampleToPeriodEnd reduces to month-end and re-merges", () => {
+      const frame = simulatedFrame();
+      const before = frame.length;
+      frame.resampleToPeriodEnd("ME");
+      expect(frame.length).toBeLessThan(before);
+      expect(frame.itemCount).toBeGreaterThan(0);
+    });
+
+    it("resampleToPeriodEnd throws when any constituent is RTRN", () => {
+      const frame = simulatedFrame({ asReturns: true });
+      expect(() => frame.resampleToPeriodEnd("ME")).toThrow(ResampleDataLossError);
+    });
+  });
+
+  describe("truncFrame", () => {
+    it("truncates to explicit date range", () => {
+      const frame = simulatedFrame();
+      const origFirst = frame.firstIdx;
+      const origLast = frame.lastIdx;
+      frame.truncFrame({
+        startCut: "2020-06-01",
+        endCut: "2020-09-30",
+      });
+      expect(frame.firstIdx >= "2020-06-01").toBe(true);
+      expect(frame.lastIdx <= "2020-09-30").toBe(true);
+    });
+
+    it("truncates to overlap when where is both (default)", () => {
+      const s1 = OpenTimeSeries.fromArrays(
+        "A",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06"],
+        [100, 101, 102, 103],
+      );
+      const s2 = OpenTimeSeries.fromArrays(
+        "B",
+        ["2020-01-02", "2020-01-03"],
+        [200, 201],
+      );
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+      frame.mergeSeries("inner");
+      expect(frame.tsdf.dates).toEqual(["2020-01-02", "2020-01-03"]);
+      frame.truncFrame({ where: "both" });
+      expect(frame.length).toBe(2);
+    });
+
+    it("truncFrame with no overlap leaves frame unchanged", () => {
+      const frame = simulatedFrame();
+      const lenBefore = frame.length;
+      frame.truncFrame({ startCut: "2030-01-01", endCut: "2030-06-01" });
+      expect(frame.length).toBe(lenBefore);
+    });
+  });
+
+  describe("captureRatio", () => {
+    it("captureRatio both returns array with benchmark column 0", () => {
+      const frame = simulatedFrame();
+      const ratios = frame.captureRatio("both", -1);
+      expect(ratios.length).toBe(3);
+      expect(ratios[2]).toBe(0);
+    });
+
+    it("captureRatio up and down return numbers or NaN", () => {
+      const frame = simulatedFrame();
+      const up = frame.captureRatio("up", 0);
+      const down = frame.captureRatio("down", 0);
+      expect(up.length).toBe(3);
+      expect(down.length).toBe(3);
+    });
+
+    it("captureRatio with explicit baseColumn index", () => {
+      const frame = simulatedFrame();
+      const ratios = frame.captureRatio("both", 1);
+      expect(ratios[1]).toBe(0);
+    });
+
+    it("captureRatio with custom freq", () => {
+      const frame = simulatedFrame();
+      const ratios = frame.captureRatio("both", -1, { freq: "QE" });
+      expect(ratios.length).toBe(3);
+    });
   });
 });

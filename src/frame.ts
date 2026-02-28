@@ -2,6 +2,7 @@ import {
   LabelsNotUniqueError,
   MixedValuetypesError,
   NoWeightsError,
+  ResampleDataLossError,
   ValueType,
   type LiteralPortfolioWeightings,
 } from "./types";
@@ -9,6 +10,7 @@ import { mean, std } from "./utils";
 import { OpenTimeSeries } from "./series";
 import { pctChange, ffill, cumProd } from "./utils";
 import type { CountryCode } from "./bizcalendar";
+import { filterToBusinessDays, resampleToPeriodEnd, type ResampleFreq } from "./bizcalendar";
 
 function normalizeCountries(c: CountryCode | CountryCode[]): CountryCode[] {
   return Array.isArray(c) ? c : [c];
@@ -367,5 +369,147 @@ export class OpenFrame {
     this.mergeSeries("outer");
     this.columnLabels = this.constituents.map((c) => c.label);
     return this;
+  }
+
+  /** Filters tsdf to retain only business days. Mutates in place. */
+  filterToBusinessDays(): this {
+    const { dates, columns } = filterToBusinessDays(
+      this.tsdf.dates,
+      this.tsdf.columns,
+      this.countries,
+    );
+    this.tsdf = { dates, columns };
+    for (const c of this.constituents) {
+      const colIdx = this.columnLabels.indexOf(c.label);
+      if (colIdx >= 0 && columns[colIdx]) {
+        c.tsdf = dates.map((d, i) => ({ date: d, value: columns[colIdx][i] }));
+      }
+    }
+    return this;
+  }
+
+  /**
+   * Resamples all constituents to business period-end frequency, then re-merges.
+   * Throws if any constituent is a return series.
+   */
+  resampleToPeriodEnd(freq: ResampleFreq = "ME"): this {
+    if (this.constituents.some((c) => c.valuetype === ValueType.RTRN))
+      throw new ResampleDataLossError(
+        "Do not run resampleToPeriodEnd on return series. Convert to price series first.",
+      );
+    for (const c of this.constituents) {
+      c.resampleToPeriodEnd(freq);
+    }
+    this.mergeSeries("outer");
+    return this;
+  }
+
+  /**
+   * Truncates frame and constituents to a common date range.
+   * @param opts - Truncation options
+   * @param opts.startCut - New first date (default: latest first date of all constituents if where includes 'before')
+   * @param opts.endCut - New last date (default: earliest last date if where includes 'after')
+   * @param opts.where - Which end(s) to truncate when cuts not provided
+   */
+  truncFrame(opts: {
+    startCut?: string;
+    endCut?: string;
+    where?: "before" | "after" | "both";
+  } = {}): this {
+    const { startCut, endCut, where = "both" } = opts;
+    let fromDate = startCut;
+    let toDate = endCut;
+    if (!fromDate && (where === "before" || where === "both")) {
+      fromDate = this.constituents
+        .map((c) => c.firstIdx)
+        .reduce((a, b) => (a > b ? a : b));
+    }
+    if (!toDate && (where === "after" || where === "both")) {
+      toDate = this.constituents
+        .map((c) => c.lastIdx)
+        .reduce((a, b) => (a < b ? a : b));
+    }
+    if (!fromDate || !toDate) return this;
+    const fromIdx = this.tsdf.dates.findIndex((d) => d >= fromDate);
+    const toIdxRev = [...this.tsdf.dates]
+      .reverse()
+      .findIndex((d) => d <= toDate);
+    const toIdx =
+      toIdxRev < 0 ? this.tsdf.dates.length - 1 : this.tsdf.dates.length - 1 - toIdxRev;
+    if (fromIdx < 0 || toIdx < fromIdx) return this;
+    const dates = this.tsdf.dates.slice(fromIdx, toIdx + 1);
+    const columns = this.tsdf.columns.map((col) => col.slice(fromIdx, toIdx + 1));
+    this.tsdf = { dates, columns };
+    for (const c of this.constituents) {
+      const colIdx = this.columnLabels.indexOf(c.label);
+      if (colIdx >= 0) {
+        const vals = columns[colIdx];
+        c.tsdf = dates.map((d, i) => ({ date: d, value: vals[i] }));
+      }
+    }
+    return this;
+  }
+
+  /**
+   * CAGR-based capture ratio vs benchmark column.
+   * @param ratio - "up" | "down" | "both" (up/down or both = up/down)
+   * @param baseColumn - Benchmark column index (-1 = last)
+   * @param opts.freq - Resample frequency for capture (default "ME")
+   */
+  captureRatio(
+    ratio: "up" | "down" | "both",
+    baseColumn = -1,
+    opts?: { freq?: ResampleFreq },
+  ): number[] {
+    const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;
+    const { dates, columns } = this.tsdf;
+    const colsFfilled = columns.map((col) => ffill(col));
+    const filtered = filterToBusinessDays(dates, colsFfilled, this.countries);
+    const resampled = resampleToPeriodEnd(
+      filtered.dates,
+      filtered.columns,
+      opts?.freq ?? "ME",
+      this.countries,
+    );
+    const monthlyRets = resampled.columns.map((col) => {
+      const r = pctChange(col);
+      r[0] = 0;
+      return r.slice(1);
+    });
+    const timeFactor = 12;
+    const cagr = (rets: number[], mask: boolean[]): number => {
+      const masked = rets
+        .map((r, i) => (mask[i] ? r + 1 : NaN))
+        .filter((x) => !Number.isNaN(x));
+      if (masked.length === 0) return 0;
+      const prod = masked.reduce((a, b) => a * b, 1);
+      const exponent = 1 / (masked.length / timeFactor);
+      return prod ** exponent - 1;
+    };
+    const benchRets = monthlyRets[baseIdx] ?? [];
+    const upMask = benchRets.map((r) => r > 0);
+    const downMask = benchRets.map((r) => r < 0);
+    return this.columnLabels.map((_, i) => {
+      if (i === baseIdx) return 0;
+      const assetRets = monthlyRets[i] ?? [];
+      if (assetRets.length !== benchRets.length || assetRets.length < 2) return NaN;
+      if (ratio === "up") {
+        const upRtrn = cagr(assetRets, upMask);
+        const upIdx = cagr(benchRets, upMask);
+        return upIdx === 0 ? NaN : upRtrn / upIdx;
+      }
+      if (ratio === "down") {
+        const downRtrn = cagr(assetRets, downMask);
+        const downIdx = cagr(benchRets, downMask);
+        return downIdx === 0 ? NaN : downRtrn / downIdx;
+      }
+      const upRtrn = cagr(assetRets, upMask);
+      const upIdx = cagr(benchRets, upMask);
+      const downRtrn = cagr(assetRets, downMask);
+      const downIdx = cagr(benchRets, downMask);
+      if (Math.abs(upIdx) < 1e-12 || Math.abs(downIdx) < 1e-12) return NaN;
+      if (downRtrn >= 0 || Math.abs(downRtrn) < 1e-12) return NaN;
+      return (upRtrn / upIdx) / (downRtrn / downIdx);
+    });
   }
 }

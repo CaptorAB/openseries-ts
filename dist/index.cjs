@@ -37,10 +37,11 @@ __export(index_exports, {
   NoWeightsError: () => NoWeightsError,
   OpenFrame: () => OpenFrame,
   OpenTimeSeries: () => OpenTimeSeries,
+  ResampleDataLossError: () => ResampleDataLossError,
   ReturnSimulation: () => ReturnSimulation,
   ValueType: () => ValueType,
   dateFix: () => dateFix,
-  dateToStr: () => dateToStr2,
+  dateToStr: () => dateToStr,
   efficientFrontier: () => efficientFrontier,
   fetchCaptorSeries: () => fetchCaptorSeries,
   fetchCaptorSeriesBatch: () => fetchCaptorSeriesBatch,
@@ -116,6 +117,172 @@ var LabelsNotUniqueError = class extends Error {
     this.name = "LabelsNotUniqueError";
   }
 };
+var ResampleDataLossError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ResampleDataLossError";
+  }
+};
+
+// src/bizcalendar.ts
+var import_date_holidays = __toESM(require("date-holidays"), 1);
+
+// src/datefixer.ts
+function dateFix(input) {
+  if (typeof input === "string") {
+    return /* @__PURE__ */ new Date(input + "T12:00:00Z");
+  }
+  return input instanceof Date ? input : new Date(input);
+}
+function dateToStr(d) {
+  return d.toISOString().slice(0, 10);
+}
+function generateCalendarDateRange(tradingDays, options) {
+  if (tradingDays < 1) {
+    throw new Error("trading_days must be greater than zero");
+  }
+  const result = [];
+  if (options?.end) {
+    const current = dateFix(options.end);
+    const temp = [];
+    while (temp.length < tradingDays) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) {
+        temp.push(dateToStr(current));
+      }
+      current.setDate(current.getDate() - 1);
+    }
+    result.push(...temp.reverse());
+  } else {
+    let current;
+    if (options?.start) {
+      current = dateFix(options.start);
+    } else {
+      current = /* @__PURE__ */ new Date();
+    }
+    let count = 0;
+    while (count < tradingDays) {
+      const day = current.getDay();
+      if (day !== 0 && day !== 6) {
+        result.push(dateToStr(current));
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
+    }
+  }
+  return result;
+}
+function offsetBusinessDays(ddate, days) {
+  const result = new Date(ddate);
+  let remaining = Math.abs(days);
+  const step = days >= 0 ? 1 : -1;
+  while (remaining > 0) {
+    result.setDate(result.getDate() + step);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) remaining--;
+  }
+  return result;
+}
+
+// src/bizcalendar.ts
+function parseDate(s) {
+  return /* @__PURE__ */ new Date(s + "T12:00:00Z");
+}
+function isWeekend(dateStr) {
+  const d = parseDate(dateStr);
+  const day = d.getUTCDay();
+  return day === 0 || day === 6;
+}
+function createHolidayCheckers(countries) {
+  const codes = Array.isArray(countries) ? countries : [countries];
+  return codes.map((c) => {
+    const hd = new import_date_holidays.default(c);
+    return (dateStr) => {
+      const result = hd.isHoliday(parseDate(dateStr));
+      return result !== false && Array.isArray(result) && result.length > 0;
+    };
+  });
+}
+function isHoliday(dateStr, checkers) {
+  return checkers.some((check) => check(dateStr));
+}
+function filterBusinessDays(dates, countries) {
+  const checkers = createHolidayCheckers(countries);
+  return dates.filter((d) => !isWeekend(d) && !isHoliday(d, checkers));
+}
+function isBusinessDay(dateStr, countries) {
+  if (isWeekend(dateStr)) return false;
+  const checkers = createHolidayCheckers(countries);
+  return !isHoliday(dateStr, checkers);
+}
+function prevBusinessDay(dateStr, countries) {
+  const d = parseDate(dateStr);
+  const checkers = createHolidayCheckers(countries);
+  while (true) {
+    const str = dateToStr(d);
+    if (!isWeekend(str) && !isHoliday(str, checkers)) return str;
+    d.setUTCDate(d.getUTCDate() - 1);
+  }
+}
+function lastBusinessDayOfMonth(year, month, countries) {
+  const lastDay = new Date(Date.UTC(year, month, 0));
+  const str = dateToStr(lastDay);
+  return prevBusinessDay(str, countries);
+}
+function lastBusinessDayOfYear(year, countries) {
+  return lastBusinessDayOfMonth(year, 12, countries);
+}
+function getWeekKey(dateStr) {
+  const d = parseDate(dateStr);
+  const startOfYear = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const msPerWeek = 7 * 24 * 60 * 60 * 1e3;
+  const weekNum = Math.floor(
+    (d.getTime() - startOfYear.getTime()) / msPerWeek
+  );
+  return `${d.getUTCFullYear()}-W${weekNum}`;
+}
+function resampleToPeriodEnd(dates, columns, freq, countries) {
+  const checkers = createHolidayCheckers(countries);
+  const isBiz = (d) => !isWeekend(d) && !isHoliday(d, checkers);
+  const outDates = [];
+  const outCols = columns.map(() => []);
+  const getPeriodKey = (dateStr) => {
+    const [y, m] = dateStr.split("-").map(Number);
+    if (freq === "WE") return getWeekKey(dateStr);
+    if (freq === "YE") return `${y}`;
+    if (freq === "QE") return `${y}-Q${Math.ceil(m / 3)}`;
+    return dateStr.slice(0, 7);
+  };
+  let i = 0;
+  while (i < dates.length) {
+    const periodKey = getPeriodKey(dates[i]);
+    let lastBizIdx = -1;
+    let j = i;
+    while (j < dates.length && getPeriodKey(dates[j]) === periodKey) {
+      if (isBiz(dates[j])) lastBizIdx = j;
+      j++;
+    }
+    if (lastBizIdx >= 0) {
+      outDates.push(dates[lastBizIdx]);
+      for (let c = 0; c < columns.length; c++) {
+        outCols[c].push(columns[c][lastBizIdx]);
+      }
+    }
+    i = j;
+  }
+  return { dates: outDates, columns: outCols };
+}
+function filterToBusinessDays(dates, columns, countries) {
+  const checkers = createHolidayCheckers(countries);
+  const indices = [];
+  for (let i = 0; i < dates.length; i++) {
+    if (!isWeekend(dates[i]) && !isHoliday(dates[i], checkers)) indices.push(i);
+  }
+  return {
+    dates: indices.map((i) => dates[i]),
+    columns: columns.map((col) => indices.map((i) => col[i]))
+  };
+}
 
 // src/utils.ts
 function mean(arr) {
@@ -242,15 +409,15 @@ function kurtosis(arr) {
 }
 
 // src/series.ts
-function parseDate(s) {
+function parseDate2(s) {
   return /* @__PURE__ */ new Date(s + "T12:00:00Z");
 }
-function dateToStr(d) {
+function dateToStr2(d) {
   return d.toISOString().slice(0, 10);
 }
 function daysBetween(a, b) {
   return Math.round(
-    (parseDate(b).getTime() - parseDate(a).getTime()) / (1e3 * 60 * 60 * 24)
+    (parseDate2(b).getTime() - parseDate2(a).getTime()) / (1e3 * 60 * 60 * 24)
   );
 }
 var OpenTimeSeries = class _OpenTimeSeries {
@@ -325,10 +492,10 @@ var OpenTimeSeries = class _OpenTimeSeries {
     let fromIdx = 0;
     let toIdx = this.tsdf.length - 1;
     if (opts.monthsFromLast != null) {
-      const last = parseDate(this.tsdf[toIdx].date);
+      const last = parseDate2(this.tsdf[toIdx].date);
       const earlier = new Date(last);
       earlier.setMonth(earlier.getMonth() - opts.monthsFromLast);
-      const fromStr = dateToStr(earlier);
+      const fromStr = dateToStr2(earlier);
       fromIdx = this.tsdf.findIndex((r) => r.date >= fromStr);
       if (fromIdx < 0) throw new DateAlignmentError("months_offset implies start before first date");
     }
@@ -563,6 +730,64 @@ var OpenTimeSeries = class _OpenTimeSeries {
     if (lvlOne != null) this.valuetype = lvlOne;
     return this;
   }
+  /** Filters tsdf to retain only business days. Mutates in place. */
+  filterToBusinessDays() {
+    const dates = this.getTsdfDates();
+    const columns = [this.getTsdfValues()];
+    const { dates: outDates, columns: outCols } = filterToBusinessDays(
+      dates,
+      columns,
+      this.countries
+    );
+    this.tsdf = outDates.map((d, i) => ({ date: d, value: outCols[0][i] }));
+    return this;
+  }
+  /**
+   * Resamples to business period-end frequency (week, month, quarter, year).
+   * Mutates tsdf. Throws on return series (use price series).
+   */
+  resampleToPeriodEnd(freq = "ME") {
+    if (this.valuetype === "Return(Total)" /* RTRN */)
+      throw new ResampleDataLossError(
+        "Do not run resampleToPeriodEnd on return series. The operation would pick the last data point per period, not sum returns, and data would be lost."
+      );
+    const dates = this.getTsdfDates();
+    const columns = [this.getTsdfValues()];
+    const { dates: outDates, columns: outCols } = resampleToPeriodEnd(
+      dates,
+      columns,
+      freq,
+      this.countries
+    );
+    this.tsdf = outDates.map((d, i) => ({ date: d, value: outCols[0][i] }));
+    return this;
+  }
+  /**
+   * Worst single calendar month return (business-month-end based).
+   * Uses filterToBusinessDays + resampleToPeriodEnd(ME) + min of monthly returns.
+   */
+  worstMonth(opts = {}) {
+    const { dates, values } = this.sliceByRange(opts);
+    if (dates.length < 2) return NaN;
+    if (this.valuetype === "Return(Total)" /* RTRN */)
+      throw new ResampleDataLossError(
+        "worstMonth requires price series. Convert to cumret first."
+      );
+    const filtered = filterToBusinessDays(dates, [values], this.countries);
+    if (filtered.dates.length < 2) return NaN;
+    const resampled = resampleToPeriodEnd(
+      filtered.dates,
+      filtered.columns,
+      "ME",
+      this.countries
+    );
+    if (resampled.dates.length < 2) return NaN;
+    const vals = ffill(resampled.columns[0]);
+    const rets = pctChange(vals);
+    rets[0] = 0;
+    const monthlyRets = rets.slice(1).filter((r) => !Number.isNaN(r));
+    return monthlyRets.length === 0 ? NaN : Math.min(...monthlyRets);
+  }
   toDrawdownSeries() {
     const vals = this.getTsdfValues().map((v) => Number.isNaN(v) ? -Infinity : v);
     let peak = vals[0];
@@ -602,7 +827,7 @@ function timeseriesChain(front, back, oldFee = 0) {
   while (firstIdx < newDates.length && !oldDateSet.has(newDates[firstIdx])) {
     firstIdx++;
   }
-  if (firstIdx >= newDates.length || parseDate(newDates[firstIdx]) > parseDate(oldDates[oldDates.length - 1]))
+  if (firstIdx >= newDates.length || parseDate2(newDates[firstIdx]) > parseDate2(oldDates[oldDates.length - 1]))
     throw new DateAlignmentError("Timeseries dates must overlap to allow chaining");
   const first = newDates[firstIdx];
   const oldDateToVal = /* @__PURE__ */ new Map();
@@ -931,64 +1156,128 @@ var OpenFrame = class {
     this.columnLabels = this.constituents.map((c) => c.label);
     return this;
   }
+  /** Filters tsdf to retain only business days. Mutates in place. */
+  filterToBusinessDays() {
+    const { dates, columns } = filterToBusinessDays(
+      this.tsdf.dates,
+      this.tsdf.columns,
+      this.countries
+    );
+    this.tsdf = { dates, columns };
+    for (const c of this.constituents) {
+      const colIdx = this.columnLabels.indexOf(c.label);
+      if (colIdx >= 0 && columns[colIdx]) {
+        c.tsdf = dates.map((d, i) => ({ date: d, value: columns[colIdx][i] }));
+      }
+    }
+    return this;
+  }
+  /**
+   * Resamples all constituents to business period-end frequency, then re-merges.
+   * Throws if any constituent is a return series.
+   */
+  resampleToPeriodEnd(freq = "ME") {
+    if (this.constituents.some((c) => c.valuetype === "Return(Total)" /* RTRN */))
+      throw new ResampleDataLossError(
+        "Do not run resampleToPeriodEnd on return series. Convert to price series first."
+      );
+    for (const c of this.constituents) {
+      c.resampleToPeriodEnd(freq);
+    }
+    this.mergeSeries("outer");
+    return this;
+  }
+  /**
+   * Truncates frame and constituents to a common date range.
+   * @param opts - Truncation options
+   * @param opts.startCut - New first date (default: latest first date of all constituents if where includes 'before')
+   * @param opts.endCut - New last date (default: earliest last date if where includes 'after')
+   * @param opts.where - Which end(s) to truncate when cuts not provided
+   */
+  truncFrame(opts = {}) {
+    const { startCut, endCut, where = "both" } = opts;
+    let fromDate = startCut;
+    let toDate = endCut;
+    if (!fromDate && (where === "before" || where === "both")) {
+      fromDate = this.constituents.map((c) => c.firstIdx).reduce((a, b) => a > b ? a : b);
+    }
+    if (!toDate && (where === "after" || where === "both")) {
+      toDate = this.constituents.map((c) => c.lastIdx).reduce((a, b) => a < b ? a : b);
+    }
+    if (!fromDate || !toDate) return this;
+    const fromIdx = this.tsdf.dates.findIndex((d) => d >= fromDate);
+    const toIdxRev = [...this.tsdf.dates].reverse().findIndex((d) => d <= toDate);
+    const toIdx = toIdxRev < 0 ? this.tsdf.dates.length - 1 : this.tsdf.dates.length - 1 - toIdxRev;
+    if (fromIdx < 0 || toIdx < fromIdx) return this;
+    const dates = this.tsdf.dates.slice(fromIdx, toIdx + 1);
+    const columns = this.tsdf.columns.map((col) => col.slice(fromIdx, toIdx + 1));
+    this.tsdf = { dates, columns };
+    for (const c of this.constituents) {
+      const colIdx = this.columnLabels.indexOf(c.label);
+      if (colIdx >= 0) {
+        const vals = columns[colIdx];
+        c.tsdf = dates.map((d, i) => ({ date: d, value: vals[i] }));
+      }
+    }
+    return this;
+  }
+  /**
+   * CAGR-based capture ratio vs benchmark column.
+   * @param ratio - "up" | "down" | "both" (up/down or both = up/down)
+   * @param baseColumn - Benchmark column index (-1 = last)
+   * @param opts.freq - Resample frequency for capture (default "ME")
+   */
+  captureRatio(ratio, baseColumn = -1, opts) {
+    const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;
+    const { dates, columns } = this.tsdf;
+    const colsFfilled = columns.map((col) => ffill(col));
+    const filtered = filterToBusinessDays(dates, colsFfilled, this.countries);
+    const resampled = resampleToPeriodEnd(
+      filtered.dates,
+      filtered.columns,
+      opts?.freq ?? "ME",
+      this.countries
+    );
+    const monthlyRets = resampled.columns.map((col) => {
+      const r = pctChange(col);
+      r[0] = 0;
+      return r.slice(1);
+    });
+    const timeFactor = 12;
+    const cagr = (rets, mask) => {
+      const masked = rets.map((r, i) => mask[i] ? r + 1 : NaN).filter((x) => !Number.isNaN(x));
+      if (masked.length === 0) return 0;
+      const prod = masked.reduce((a, b) => a * b, 1);
+      const exponent = 1 / (masked.length / timeFactor);
+      return prod ** exponent - 1;
+    };
+    const benchRets = monthlyRets[baseIdx] ?? [];
+    const upMask = benchRets.map((r) => r > 0);
+    const downMask = benchRets.map((r) => r < 0);
+    return this.columnLabels.map((_, i) => {
+      if (i === baseIdx) return 0;
+      const assetRets = monthlyRets[i] ?? [];
+      if (assetRets.length !== benchRets.length || assetRets.length < 2) return NaN;
+      if (ratio === "up") {
+        const upRtrn2 = cagr(assetRets, upMask);
+        const upIdx2 = cagr(benchRets, upMask);
+        return upIdx2 === 0 ? NaN : upRtrn2 / upIdx2;
+      }
+      if (ratio === "down") {
+        const downRtrn2 = cagr(assetRets, downMask);
+        const downIdx2 = cagr(benchRets, downMask);
+        return downIdx2 === 0 ? NaN : downRtrn2 / downIdx2;
+      }
+      const upRtrn = cagr(assetRets, upMask);
+      const upIdx = cagr(benchRets, upMask);
+      const downRtrn = cagr(assetRets, downMask);
+      const downIdx = cagr(benchRets, downMask);
+      if (Math.abs(upIdx) < 1e-12 || Math.abs(downIdx) < 1e-12) return NaN;
+      if (downRtrn >= 0 || Math.abs(downRtrn) < 1e-12) return NaN;
+      return upRtrn / upIdx / (downRtrn / downIdx);
+    });
+  }
 };
-
-// src/datefixer.ts
-function dateFix(input) {
-  if (typeof input === "string") {
-    return /* @__PURE__ */ new Date(input + "T12:00:00Z");
-  }
-  return input instanceof Date ? input : new Date(input);
-}
-function dateToStr2(d) {
-  return d.toISOString().slice(0, 10);
-}
-function generateCalendarDateRange(tradingDays, options) {
-  if (tradingDays < 1) {
-    throw new Error("trading_days must be greater than zero");
-  }
-  const result = [];
-  if (options?.end) {
-    const current = dateFix(options.end);
-    const temp = [];
-    while (temp.length < tradingDays) {
-      const day = current.getDay();
-      if (day !== 0 && day !== 6) {
-        temp.push(dateToStr2(current));
-      }
-      current.setDate(current.getDate() - 1);
-    }
-    result.push(...temp.reverse());
-  } else {
-    let current;
-    if (options?.start) {
-      current = dateFix(options.start);
-    } else {
-      current = /* @__PURE__ */ new Date();
-    }
-    let count = 0;
-    while (count < tradingDays) {
-      const day = current.getDay();
-      if (day !== 0 && day !== 6) {
-        result.push(dateToStr2(current));
-        count++;
-      }
-      current.setDate(current.getDate() + 1);
-    }
-  }
-  return result;
-}
-function offsetBusinessDays(ddate, days) {
-  const result = new Date(ddate);
-  let remaining = Math.abs(days);
-  const step = days >= 0 ? 1 : -1;
-  while (remaining > 0) {
-    result.setDate(result.getDate() + step);
-    const day = result.getDay();
-    if (day !== 0 && day !== 6) remaining--;
-  }
-  return result;
-}
 
 // src/simulation.ts
 function createRng(seed) {
@@ -1183,107 +1472,6 @@ var ReturnSimulation = class _ReturnSimulation {
 };
 function randomGenerator(seed) {
   return createRng(seed);
-}
-
-// src/bizcalendar.ts
-var import_date_holidays = __toESM(require("date-holidays"), 1);
-function parseDate2(s) {
-  return /* @__PURE__ */ new Date(s + "T12:00:00Z");
-}
-function isWeekend(dateStr) {
-  const d = parseDate2(dateStr);
-  const day = d.getUTCDay();
-  return day === 0 || day === 6;
-}
-function createHolidayCheckers(countries) {
-  const codes = Array.isArray(countries) ? countries : [countries];
-  return codes.map((c) => {
-    const hd = new import_date_holidays.default(c);
-    return (dateStr) => {
-      const result = hd.isHoliday(parseDate2(dateStr));
-      return result !== false && Array.isArray(result) && result.length > 0;
-    };
-  });
-}
-function isHoliday(dateStr, checkers) {
-  return checkers.some((check) => check(dateStr));
-}
-function filterBusinessDays(dates, countries) {
-  const checkers = createHolidayCheckers(countries);
-  return dates.filter((d) => !isWeekend(d) && !isHoliday(d, checkers));
-}
-function isBusinessDay(dateStr, countries) {
-  if (isWeekend(dateStr)) return false;
-  const checkers = createHolidayCheckers(countries);
-  return !isHoliday(dateStr, checkers);
-}
-function prevBusinessDay(dateStr, countries) {
-  const d = parseDate2(dateStr);
-  const checkers = createHolidayCheckers(countries);
-  while (true) {
-    const str = dateToStr2(d);
-    if (!isWeekend(str) && !isHoliday(str, checkers)) return str;
-    d.setUTCDate(d.getUTCDate() - 1);
-  }
-}
-function lastBusinessDayOfMonth(year, month, countries) {
-  const lastDay = new Date(Date.UTC(year, month, 0));
-  const str = dateToStr2(lastDay);
-  return prevBusinessDay(str, countries);
-}
-function lastBusinessDayOfYear(year, countries) {
-  return lastBusinessDayOfMonth(year, 12, countries);
-}
-function getWeekKey(dateStr) {
-  const d = parseDate2(dateStr);
-  const startOfYear = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const msPerWeek = 7 * 24 * 60 * 60 * 1e3;
-  const weekNum = Math.floor(
-    (d.getTime() - startOfYear.getTime()) / msPerWeek
-  );
-  return `${d.getUTCFullYear()}-W${weekNum}`;
-}
-function resampleToPeriodEnd(dates, columns, freq, countries) {
-  const checkers = createHolidayCheckers(countries);
-  const isBiz = (d) => !isWeekend(d) && !isHoliday(d, checkers);
-  const outDates = [];
-  const outCols = columns.map(() => []);
-  const getPeriodKey = (dateStr) => {
-    const [y, m] = dateStr.split("-").map(Number);
-    if (freq === "WE") return getWeekKey(dateStr);
-    if (freq === "YE") return `${y}`;
-    if (freq === "QE") return `${y}-Q${Math.ceil(m / 3)}`;
-    return dateStr.slice(0, 7);
-  };
-  let i = 0;
-  while (i < dates.length) {
-    const periodKey = getPeriodKey(dates[i]);
-    let lastBizIdx = -1;
-    let j = i;
-    while (j < dates.length && getPeriodKey(dates[j]) === periodKey) {
-      if (isBiz(dates[j])) lastBizIdx = j;
-      j++;
-    }
-    if (lastBizIdx >= 0) {
-      outDates.push(dates[lastBizIdx]);
-      for (let c = 0; c < columns.length; c++) {
-        outCols[c].push(columns[c][lastBizIdx]);
-      }
-    }
-    i = j;
-  }
-  return { dates: outDates, columns: outCols };
-}
-function filterToBusinessDays(dates, columns, countries) {
-  const checkers = createHolidayCheckers(countries);
-  const indices = [];
-  for (let i = 0; i < dates.length; i++) {
-    if (!isWeekend(dates[i]) && !isHoliday(dates[i], checkers)) indices.push(i);
-  }
-  return {
-    dates: indices.map((i) => dates[i]),
-    columns: columns.map((col) => indices.map((i) => col[i]))
-  };
 }
 
 // src/portfoliotools.ts
@@ -1558,25 +1746,6 @@ function computeAnnualReturns(dates, values) {
   }
   return result;
 }
-function computeCaptureRatioCagr(assetRets, benchmarkRets, timeFactor) {
-  if (assetRets.length !== benchmarkRets.length || assetRets.length < 2) return NaN;
-  const upMask = benchmarkRets.map((r) => r > 0);
-  const downMask = benchmarkRets.map((r) => r < 0);
-  const cagr = (rets, mask) => {
-    const masked = rets.map((r, i) => mask[i] ? r + 1 : NaN).filter((x) => !Number.isNaN(x));
-    if (masked.length === 0) return 0;
-    const prod = masked.reduce((a, b) => a * b, 1);
-    const exponent = 1 / (masked.length / timeFactor);
-    return prod ** exponent - 1;
-  };
-  const upRtrn = cagr(assetRets, upMask);
-  const upIdxReturn = cagr(benchmarkRets, upMask);
-  const downReturn = cagr(assetRets, downMask);
-  const downIdxReturn = cagr(benchmarkRets, downMask);
-  if (Math.abs(upIdxReturn) < 1e-12 || Math.abs(downIdxReturn) < 1e-12) return NaN;
-  if (downReturn >= 0 || Math.abs(downReturn) < 1e-12) return NaN;
-  return upRtrn / upIdxReturn / (downReturn / downIdxReturn);
-}
 function reportHtml(frame, options = {}) {
   const title = options.title ?? "Portfolio Report";
   const logoUrl = options.addLogo !== false ? options.logoUrl ?? DEFAULT_LOGO_URL : "";
@@ -1593,7 +1762,8 @@ function reportHtml(frame, options = {}) {
     (_, i) => OpenTimeSeries.fromArrays(
       frame.columnLabels[i],
       rawDates,
-      colsFfilled[i]
+      colsFfilled[i],
+      { countries }
     )
   );
   const stats = [];
@@ -1651,32 +1821,14 @@ function reportHtml(frame, options = {}) {
     metric: "Index Beta (weekly)",
     values: betas.map((v) => Number.isNaN(v) ? "" : formatNum(v))
   });
-  const { dates: bizDates, columns: bizCols } = filterToBusinessDays(
-    rawDates,
-    colsFfilled,
-    countries
-  );
-  const monthlyResampled = resampleToPeriodEnd(bizDates, bizCols, "ME", countries);
-  const monthlyRets = monthlyResampled.columns.map((col) => {
-    const r = pctChange(col);
-    r[0] = 0;
-    return r.slice(1);
-  });
-  const captureRatios = series.map((_, i) => {
-    if (i === benchmarkIdx) return NaN;
-    return computeCaptureRatioCagr(
-      monthlyRets[i],
-      monthlyRets[benchmarkIdx],
-      12
-    );
-  });
+  const captureRatios = frame.captureRatio("both", benchmarkIdx);
   stats.push({
     metric: "Capture Ratio (monthly)",
-    values: captureRatios.map((v) => Number.isNaN(v) ? "" : formatNum(v))
+    values: captureRatios.map(
+      (v) => Number.isNaN(v) ? "" : formatNum(v)
+    )
   });
-  const worstMonths = monthlyRets.map(
-    (rets) => rets.length === 0 ? NaN : Math.min(...rets)
-  );
+  const worstMonths = series.map((s) => s.worstMonth());
   stats.push({
     metric: "Worst Month",
     values: worstMonths.map((v) => Number.isNaN(v) ? "" : formatPct(v))
@@ -1883,6 +2035,7 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
   NoWeightsError,
   OpenFrame,
   OpenTimeSeries,
+  ResampleDataLossError,
   ReturnSimulation,
   ValueType,
   dateFix,

@@ -46,6 +46,7 @@ export {
   MixedValuetypesError,
   NoWeightsError,
   IncorrectArgumentComboError,
+  ResampleDataLossError,
 } from "./types";
 export { mean, std, quantile, pctChange } from "./utils";
 export { reportHtml, type ReportOptions } from "./report";
