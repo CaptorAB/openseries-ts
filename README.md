@@ -87,21 +87,68 @@ Docs will be available at `https://<username>.github.io/<repo>/`.
 
 ## Scripts
 
+### Build & Development
+
+| Command | Description |
+|---------|-------------|
+| `npm run build` | Build `dist/` (ESM + CJS + declarations) |
+| `npm run test` | Run Vitest test suite |
+| `npm run test:coverage` | Run tests with Istanbul coverage report |
+| `npm run lint` | Run ESLint on `src/` |
+| `npm run lint:fix` | ESLint with auto-fix |
+| `npm run typecheck` | TypeScript check (`tsc --noEmit`) |
+| `npm run check` | Run lint + typecheck |
+| `npm run docs` | Generate API docs to `docs/` (TypeDoc) |
+
+### Report Script
+
+Generates an HTML portfolio report from Captor API timeseries (cumulative performance, annual returns, statistics).
+
+| Command | Description |
+|---------|-------------|
+| `npm run report` | Report with custom or default Captor series IDs |
+| `npm run report:iris` | Preset: Captor Iris Bond + Benchmark Index |
+| `npm run report:captor` | Same as `report` (default Captor IDs) |
+
+**Options** (pass after `--`): `--ids id1 id2 ...`, `--iris`, `--title "Title"`, `--countries "SE,US"`, `--from-date YYYY-MM-DD`, `--to-date YYYY-MM-DD`, `--filename path`, `--no-open`, `--no-logo`.
+
+**Examples:**
 ```bash
-npm run build          # Build dist/
-npm run test           # Run tests
-npm run test:coverage  # Tests with coverage
-npm run lint           # ESLint
-npm run lint:fix       # ESLint with auto-fix
-npm run typecheck      # TypeScript check
-npm run check          # lint + typecheck
-npm run docs           # Generate API docs to docs/
-npm run report         # Captor API report (--ids id1 id2 ... [--title, --countries, --from-date, --to-date, --filename, --no-open, --no-logo])
-npm run report:iris    # Iris Bond + Benchmark preset
-npm run report:captor  # Same as report (default Captor IDs)
-npm run plot:iris      # Full-page plot (Captor Iris Bond + Benchmark)
-npm run plot           # Plot with default Captor IDs (same options as report)
-npm run plot:captor    # Same as plot
+npm run report -- --ids 638f681e 5b72a10c 5c1115fb
+npm run report:iris -- --from-date 2023-01-01 --to-date 2024-12-31 --no-open
+```
+
+### Plot Script
+
+Generates a full-page HTML line chart of cumulative returns (100 base) from Captor API timeseries.
+
+| Command | Description |
+|---------|-------------|
+| `npm run plot` | Plot with custom or default Captor series IDs |
+| `npm run plot:iris` | Preset: Captor Iris Bond + Benchmark Index |
+| `npm run plot:captor` | Same as `plot` |
+
+**Options** (pass after `--`): same as Report (`--ids`, `--iris`, `--title`, `--countries`, `--from-date`, `--to-date`, `--filename`, `--no-open`, `--no-logo`).
+
+**Examples:**
+```bash
+npm run plot:iris
+npm run plot -- --ids id1 id2 --no-open --filename my-plot.html
+```
+
+### Efficient Frontier Script
+
+Simulates asset returns (lognormal), builds portfolio frame, computes efficient frontier and max-Sharpe portfolio, and plots simulated portfolios, frontier, and labeled points (assets, current, optimum). Mirrors the Python openseries Jupyter notebook workflow.
+
+| Command | Description |
+|---------|-------------|
+| `npm run efficient-frontier` | Run efficient frontier demo |
+
+**Options** (pass after `--`): `--simulations N` (default: 5000), `--points N` (default: 30), `--seed N` (default: 71), `--countries "SE"`, `--title "Title"`, `--filename path`, `--no-open`, `--no-logo`.
+
+**Example:**
+```bash
+npm run efficient-frontier -- --simulations 3000 --points 25 --no-open
 ```
 
 ## License
