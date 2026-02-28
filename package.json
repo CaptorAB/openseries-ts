@@ -21,7 +21,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
     "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck",
     "report": "tsx scripts/captor-report.ts"
   },
   "keywords": [
@@ -46,7 +48,7 @@
     "vitest": "^2.1.9"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
     "open": "^11.0.0"

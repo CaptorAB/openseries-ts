@@ -1,4 +1,3 @@
-import { ValueType } from "./types";
 import { generateCalendarDateRange } from "./datefixer";
 
 function createRng(seed?: number): () => number {

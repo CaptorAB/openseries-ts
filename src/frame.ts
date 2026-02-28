@@ -261,11 +261,10 @@ export class OpenFrame {
     return inv;
   }
 
-  trackingError(baseColumn = -1, opts?: { fromDate?: string; toDate?: string }): number[] {
+  trackingError(baseColumn = -1, _opts?: { fromDate?: string; toDate?: string }): number[] {
     const rets = this.ensureReturns().map((col) => col.slice(1));
     const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;
     const baseRets = rets[baseIdx];
-    const n = baseRets.length;
     const tf = this.periodInAYear;
     const result: number[] = [];
     for (let i = 0; i < this.itemCount; i++) {

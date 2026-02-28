@@ -1,4 +1,4 @@
-import { mean, std } from "./utils";
+import { mean } from "./utils";
 import { OpenFrame } from "./frame";
 import { ValueType } from "./types";
 import { randomGenerator } from "./simulation";
@@ -15,7 +15,6 @@ export function simulatePortfolios(
   numPorts: number,
   seed: number,
 ): SimulatedPortfolio[] {
-  const weights = frame.weights ?? frame.columnLabels.map(() => 1 / frame.itemCount);
   const rets = frame.tsdf.columns.map((col) => {
     const v = col.slice(1);
     return frame.constituents.every((c) => c.valuetype === ValueType.RTRN)
