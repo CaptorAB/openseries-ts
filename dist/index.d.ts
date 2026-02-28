@@ -31,6 +31,61 @@ declare class IncorrectArgumentComboError extends Error {
 }
 
 /**
+ * Business calendar utilities with holiday awareness via date-holidays.
+ *
+ * Supports filtering dates to business days (excluding weekends and holidays),
+ * finding last business day of period, and period-end resampling.
+ */
+type CountryCode = string;
+/**
+ * Filters an array of date strings to keep only business days.
+ * Business day = not weekend (Sat/Sun) and not a holiday in any of the specified countries.
+ *
+ * @param dates - Array of date strings (YYYY-MM-DD)
+ * @param countries - Country code(s) for holiday calendar, e.g. "SE", "US", ["SE", "NO"]
+ * @returns Array of business-day date strings (subsequence of input, preserving order)
+ */
+declare function filterBusinessDays(dates: string[], countries: CountryCode | CountryCode[]): string[];
+/**
+ * Checks whether a date is a business day.
+ */
+declare function isBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): boolean;
+/**
+ * Finds the last business day on or before the given date.
+ */
+declare function prevBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): string;
+/**
+ * Last business day of the given month (1-indexed).
+ */
+declare function lastBusinessDayOfMonth(year: number, month: number, countries: CountryCode | CountryCode[]): string;
+/**
+ * Last business day of the given year.
+ */
+declare function lastBusinessDayOfYear(year: number, countries: CountryCode | CountryCode[]): string;
+type ResampleFreq = "WE" | "ME" | "QE" | "YE";
+/**
+ * Resamples dates and columns to end-of-business period frequency.
+ * Each period takes the last observation that falls on a business day within that period.
+ *
+ * @param dates - Sorted array of date strings
+ * @param columns - Value columns (same length as dates)
+ * @param freq - WE (week-end), ME (month-end), QE (quarter-end), YE (year-end)
+ * @param countries - Country code(s) for holiday filtering
+ */
+declare function resampleToPeriodEnd(dates: string[], columns: number[][], freq: ResampleFreq, countries: CountryCode | CountryCode[]): {
+    dates: string[];
+    columns: number[][];
+};
+/**
+ * Filters (dates, columns) to retain only rows where the date is a business day.
+ * Preserves alignment across all columns.
+ */
+declare function filterToBusinessDays(dates: string[], columns: number[][], countries: CountryCode | CountryCode[]): {
+    dates: string[];
+    columns: number[][];
+};
+
+/**
  * Options to slice a series by date range.
  */
 type DateRangeOptions = {
@@ -54,7 +109,8 @@ declare class OpenTimeSeries {
     }[];
     currency: string;
     localCcy: boolean;
-    countries: string;
+    /** Country code(s) for business calendar (holidays, resampling). Default "SE". */
+    countries: CountryCode | CountryCode[];
     markets: string | string[] | null;
     constructor(params: {
         timeseriesId?: string;
@@ -66,7 +122,7 @@ declare class OpenTimeSeries {
         valuetype?: ValueType;
         currency?: string;
         localCcy?: boolean;
-        countries?: string;
+        countries?: CountryCode | CountryCode[];
         markets?: string | string[] | null;
     });
     /** Creates an OpenTimeSeries from a name, dates array, and values array. */
@@ -76,6 +132,7 @@ declare class OpenTimeSeries {
         instrumentId?: string;
         baseccy?: string;
         localCcy?: boolean;
+        countries?: CountryCode | CountryCode[];
     }): OpenTimeSeries;
     /** Creates an OpenTimeSeries from a record or array of {date, value}. */
     static fromObject(data: Record<string, number> | {
@@ -92,6 +149,7 @@ declare class OpenTimeSeries {
     }, options?: {
         columnIndex?: number;
         valuetype?: ValueType;
+        countries?: CountryCode | CountryCode[];
     }): OpenTimeSeries;
     fromDeepcopy(): OpenTimeSeries;
     getTsdfValues(): number[];
@@ -141,7 +199,11 @@ declare class OpenFrame {
         columns: number[][];
     };
     columnLabels: string[];
-    constructor(constituents: OpenTimeSeries[], weights?: number[] | null);
+    /** Country code(s) for business calendar (holidays, resampling). Used when adapting data to business days. */
+    countries: CountryCode[];
+    constructor(constituents: OpenTimeSeries[], weights?: number[] | null, options?: {
+        countries?: CountryCode | CountryCode[];
+    });
     get itemCount(): number;
     get length(): number;
     get firstIdx(): string;
@@ -225,61 +287,6 @@ declare function generateCalendarDateRange(tradingDays: number, options?: {
 /** Offsets a date by a number of business days. */
 declare function offsetBusinessDays(ddate: Date, days: number): Date;
 
-/**
- * Business calendar utilities with holiday awareness via date-holidays.
- *
- * Supports filtering dates to business days (excluding weekends and holidays),
- * finding last business day of period, and period-end resampling.
- */
-type CountryCode = string;
-/**
- * Filters an array of date strings to keep only business days.
- * Business day = not weekend (Sat/Sun) and not a holiday in any of the specified countries.
- *
- * @param dates - Array of date strings (YYYY-MM-DD)
- * @param countries - Country code(s) for holiday calendar, e.g. "SE", "US", ["SE", "NO"]
- * @returns Array of business-day date strings (subsequence of input, preserving order)
- */
-declare function filterBusinessDays(dates: string[], countries: CountryCode | CountryCode[]): string[];
-/**
- * Checks whether a date is a business day.
- */
-declare function isBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): boolean;
-/**
- * Finds the last business day on or before the given date.
- */
-declare function prevBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): string;
-/**
- * Last business day of the given month (1-indexed).
- */
-declare function lastBusinessDayOfMonth(year: number, month: number, countries: CountryCode | CountryCode[]): string;
-/**
- * Last business day of the given year.
- */
-declare function lastBusinessDayOfYear(year: number, countries: CountryCode | CountryCode[]): string;
-type ResampleFreq = "WE" | "ME" | "QE" | "YE";
-/**
- * Resamples dates and columns to end-of-business period frequency.
- * Each period takes the last observation that falls on a business day within that period.
- *
- * @param dates - Sorted array of date strings
- * @param columns - Value columns (same length as dates)
- * @param freq - WE (week-end), ME (month-end), QE (quarter-end), YE (year-end)
- * @param countries - Country code(s) for holiday filtering
- */
-declare function resampleToPeriodEnd(dates: string[], columns: number[][], freq: ResampleFreq, countries: CountryCode | CountryCode[]): {
-    dates: string[];
-    columns: number[][];
-};
-/**
- * Filters (dates, columns) to retain only rows where the date is a business day.
- * Preserves alignment across all columns.
- */
-declare function filterToBusinessDays(dates: string[], columns: number[][], countries: CountryCode | CountryCode[]): {
-    dates: string[];
-    columns: number[][];
-};
-
 interface SimulatedPortfolio {
     stdev: number;
     ret: number;
@@ -338,4 +345,26 @@ declare function quantile(arr: number[], q: number, sorted?: boolean): number;
 /** Returns period-over-period percentage change. First element is 0. */
 declare function pctChange(values: number[]): number[];
 
-export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, prevBusinessDay, quantile, randomGenerator, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };
+/**
+ * HTML report generation for OpenFrame.
+ * Mirror of Python openseries report_html: takes an OpenFrame and produces HTML.
+ * Fetch logic is kept outside - callers provide the frame (e.g. from Captor API).
+ */
+
+interface ReportOptions {
+    title?: string;
+    logoUrl?: string;
+    addLogo?: boolean;
+}
+/**
+ * Generate HTML report from an OpenFrame.
+ * Analogous to Python openseries report_html(data: OpenFrame, ...).
+ * The frame should have mergeSeries("inner") already applied.
+ *
+ * @param frame - OpenFrame with aligned series (mergeSeries("inner"))
+ * @param options - Report options (title, logo). Countries come from frame.countries.
+ * @returns HTML string
+ */
+declare function reportHtml(frame: OpenFrame, options?: ReportOptions): string;
+
+export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, type ReportOptions, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };

@@ -8,6 +8,11 @@ import {
 import { mean, std } from "./utils";
 import { OpenTimeSeries } from "./series";
 import { pctChange, ffill, cumProd } from "./utils";
+import type { CountryCode } from "./bizcalendar";
+
+function normalizeCountries(c: CountryCode | CountryCode[]): CountryCode[] {
+  return Array.isArray(c) ? c : [c];
+}
 
 function alignSeriesToCommonDates(
   series: OpenTimeSeries[],
@@ -77,8 +82,14 @@ export class OpenFrame {
   weights: number[] | null;
   tsdf: { dates: string[]; columns: number[][] };
   columnLabels: string[];
+  /** Country code(s) for business calendar (holidays, resampling). Used when adapting data to business days. */
+  countries: CountryCode[];
 
-  constructor(constituents: OpenTimeSeries[], weights: number[] | null = null) {
+  constructor(
+    constituents: OpenTimeSeries[],
+    weights: number[] | null = null,
+    options?: { countries?: CountryCode | CountryCode[] },
+  ) {
     const copied = constituents.map((c) => c.fromDeepcopy());
     const labels = copied.map((c) => c.label);
     if (new Set(labels).size !== labels.length) {
@@ -89,6 +100,10 @@ export class OpenFrame {
     const { dates, valuesBySeries } = alignSeriesToCommonDates(copied, "outer");
     this.tsdf = { dates, columns: valuesBySeries };
     this.columnLabels = labels;
+    this.countries =
+      options?.countries != null
+        ? normalizeCountries(options.countries)
+        : normalizeCountries(copied[0]?.countries ?? "SE");
   }
 
   get itemCount(): number {

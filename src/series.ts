@@ -1,4 +1,5 @@
 import { DateAlignmentError, InitialValueZeroError, ValueType } from "./types";
+import type { CountryCode } from "./bizcalendar";
 import {
   cumProd,
   ffill,
@@ -48,7 +49,8 @@ export class OpenTimeSeries {
   tsdf: { date: string; value: number }[];
   currency: string;
   localCcy: boolean;
-  countries: string;
+  /** Country code(s) for business calendar (holidays, resampling). Default "SE". */
+  countries: CountryCode | CountryCode[];
   markets: string | string[] | null;
 
   constructor(params: {
@@ -61,7 +63,7 @@ export class OpenTimeSeries {
     valuetype?: ValueType;
     currency?: string;
     localCcy?: boolean;
-    countries?: string;
+    countries?: CountryCode | CountryCode[];
     markets?: string | string[] | null;
   }) {
     this.timeseriesId = params.timeseriesId ?? "";
@@ -73,7 +75,7 @@ export class OpenTimeSeries {
     this.valuetype = params.valuetype ?? ValueType.PRICE;
     this.currency = params.currency ?? "SEK";
     this.localCcy = params.localCcy ?? true;
-    this.countries = params.countries ?? "SE";
+    this.countries = params.countries ?? ("SE" as CountryCode);
     this.markets = params.markets ?? null;
     this.tsdf = this.dates.map((d, i) => ({ date: d, value: this.values[i] }));
   }
@@ -89,6 +91,7 @@ export class OpenTimeSeries {
       instrumentId?: string;
       baseccy?: string;
       localCcy?: boolean;
+      countries?: CountryCode | CountryCode[];
     },
   ): OpenTimeSeries {
     return new OpenTimeSeries({
@@ -101,6 +104,7 @@ export class OpenTimeSeries {
       instrumentId: options?.instrumentId ?? "",
       currency: options?.baseccy ?? "SEK",
       localCcy: options?.localCcy ?? true,
+      countries: options?.countries,
     });
   }
 
@@ -119,13 +123,14 @@ export class OpenTimeSeries {
   /** Creates an OpenTimeSeries from simulation dateColumns by column index. */
   static fromDateColumns(
     dateColumns: { dates: string[]; columns: { name: string; values: number[] }[] },
-    options?: { columnIndex?: number; valuetype?: ValueType },
+    options?: { columnIndex?: number; valuetype?: ValueType; countries?: CountryCode | CountryCode[] },
   ): OpenTimeSeries {
     const idx = options?.columnIndex ?? 0;
     const col = dateColumns.columns[idx];
     if (!col) throw new Error("Column index out of range");
     return OpenTimeSeries.fromArrays(col.name, dateColumns.dates, col.values, {
       valuetype: options?.valuetype,
+      countries: options?.countries,
     });
   }
 
