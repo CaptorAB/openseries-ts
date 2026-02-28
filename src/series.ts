@@ -485,9 +485,13 @@ export function timeseriesChain(
     throw new DateAlignmentError("Timeseries dates must overlap to allow chaining");
 
   const first = newDates[firstIdx];
+  const oldDateToVal = new Map<string, number>();
+  for (let i = 0; i < oldDates.length; i++) {
+    oldDateToVal.set(oldDates[i], oldVals[i]);
+  }
   const frontDates = oldDates.filter((d) => d < first);
-  const frontVals = frontDates.map((d) => oldVals[oldDates.indexOf(d)]);
-  const oldValAtFirst = oldVals[oldDates.indexOf(first)];
+  const frontVals = frontDates.map((d) => oldDateToVal.get(d)!);
+  const oldValAtFirst = oldDateToVal.get(first)!;
   const newValAtFirst = newVals[firstIdx];
   const scale = newValAtFirst / oldValAtFirst;
   const scaledFront = frontVals.map((v) => v * scale);

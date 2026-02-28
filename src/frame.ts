@@ -15,33 +15,49 @@ function alignSeriesToCommonDates(
 ): { dates: string[]; valuesBySeries: number[][] } {
   const allDates = new Set<string>();
   for (const s of series) {
-    for (const d of s.tsdf.map((r) => r.date)) {
-      allDates.add(d);
+    for (const r of s.tsdf) {
+      allDates.add(r.date);
     }
   }
   let dates = Array.from(allDates).sort();
   if (how === "inner") {
-    const inAll = dates.filter((d) =>
-      series.every((s) => s.tsdf.some((r) => r.date === d)),
-    );
-    dates = inAll;
+    const dateSets = series.map((s) => new Set(s.tsdf.map((r) => r.date)));
+    dates = dates.filter((d) => dateSets.every((set) => set.has(d)));
   }
 
-  const getVal = (s: OpenTimeSeries, d: string): number | null => {
-    const tsdf = s.tsdf;
-    const idx = tsdf.findIndex((r) => r.date === d);
-    if (idx >= 0) return tsdf[idx].value;
-    const dates = tsdf.map((r) => r.date);
-    for (let i = 0; i < dates.length - 1; i++) {
-      if (dates[i] < d && d < dates[i + 1]) return tsdf[i].value;
+  const seriesMaps = series.map((s) => {
+    const dateToVal = new Map<string, number>();
+    const seriesDates: string[] = [];
+    for (const r of s.tsdf) {
+      dateToVal.set(r.date, r.value);
+      seriesDates.push(r.date);
     }
-    if (d < dates[0]) return tsdf[0].value;
-    if (d > dates[dates.length - 1]) return tsdf[tsdf.length - 1].value;
-    return null;
+    seriesDates.sort();
+    return { dateToVal, seriesDates };
+  });
+
+  const getVal = (
+    { dateToVal, seriesDates }: { dateToVal: Map<string, number>; seriesDates: string[] },
+    d: string,
+  ): number | null => {
+    const exact = dateToVal.get(d);
+    if (exact !== undefined) return exact;
+    if (seriesDates.length === 0) return null;
+    if (d < seriesDates[0]) return dateToVal.get(seriesDates[0]) ?? null;
+    if (d > seriesDates[seriesDates.length - 1])
+      return dateToVal.get(seriesDates[seriesDates.length - 1]) ?? null;
+    let lo = 0;
+    let hi = seriesDates.length - 1;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (seriesDates[mid]! <= d) lo = mid;
+      else hi = mid - 1;
+    }
+    return dateToVal.get(seriesDates[lo]!) ?? null;
   };
 
-  const valuesBySeries = series.map((s) =>
-    dates.map((d) => getVal(s, d) ?? NaN),
+  const valuesBySeries = series.map((s, i) =>
+    dates.map((d) => getVal(seriesMaps[i]!, d) ?? NaN),
   );
 
   const ffilled = valuesBySeries.map((vals) => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { OpenTimeSeries, timeseriesChain } from "../src/series";
 import { ValueType } from "../src/types";
+import { DateAlignmentError, InitialValueZeroError } from "../src/types";
 import { simulatedSeries } from "./fixtures";
 import { ReturnSimulation } from "../src/simulation";
 import { cumProd } from "../src/utils";
@@ -8,6 +9,47 @@ import { cumProd } from "../src/utils";
 const to9 = (x: number) => x.toFixed(9);
 
 describe("OpenTimeSeries", () => {
+  describe("error handling", () => {
+    it("geoRet throws InitialValueZeroError when first value is zero", () => {
+      const series = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02"],
+        [0, 100],
+      );
+      expect(() => series.geoRet()).toThrow(InitialValueZeroError);
+      expect(() => series.geoRet()).toThrow("zero or negative");
+    });
+
+    it("geoRet throws InitialValueZeroError when last value is zero", () => {
+      const series = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02"],
+        [100, 0],
+      );
+      expect(() => series.geoRet()).toThrow(InitialValueZeroError);
+    });
+
+    it("valueRet throws InitialValueZeroError when initial value is zero", () => {
+      const series = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02"],
+        [0, 110],
+      );
+      expect(() => series.valueRet()).toThrow(InitialValueZeroError);
+      expect(() => series.valueRet()).toThrow("initial value zero");
+    });
+
+    it("fromDateColumns throws when column index out of range", () => {
+      const dateColumns = {
+        dates: ["2020-01-01"],
+        columns: [{ name: "A", values: [100] }],
+      };
+      expect(() =>
+        OpenTimeSeries.fromDateColumns(dateColumns, { columnIndex: 5 }),
+      ).toThrow("Column index out of range");
+    });
+  });
+
   it("creates from arrays", () => {
     const dates = ["2020-01-02", "2020-01-03", "2020-01-06"];
     const values = [100, 102, 101];
@@ -172,7 +214,7 @@ describe("timeseriesChain", () => {
     expect(chained.getTsdfDates().length).toBeGreaterThan(2);
   });
 
-  it("throws when series do not overlap", () => {
+  it("throws DateAlignmentError when series do not overlap", () => {
     const front = OpenTimeSeries.fromArrays(
       "Front",
       ["2020-01-01", "2020-01-02"],
@@ -183,6 +225,7 @@ describe("timeseriesChain", () => {
       ["2020-01-05", "2020-01-06"],
       [105, 106],
     );
+    expect(() => timeseriesChain(front, back)).toThrow(DateAlignmentError);
     expect(() => timeseriesChain(front, back)).toThrow("overlap");
   });
 

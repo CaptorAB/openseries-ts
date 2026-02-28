@@ -1,10 +1,48 @@
 import { describe, it, expect } from "vitest";
+import { OpenTimeSeries } from "../src/series";
 import { OpenFrame } from "../src/frame";
+import { ValueType } from "../src/types";
+import {
+  LabelsNotUniqueError,
+  MixedValuetypesError,
+  NoWeightsError,
+} from "../src/types";
 import { simulatedFrame } from "./fixtures";
 
 const to9 = (x: number) => x.toFixed(9);
 
 describe("OpenFrame", () => {
+  describe("error handling", () => {
+    it("constructor throws LabelsNotUniqueError when constituent labels are duplicate", () => {
+      const s1 = OpenTimeSeries.fromArrays("Same", ["2020-01-01"], [100]);
+      const s2 = OpenTimeSeries.fromArrays("Same", ["2020-01-01"], [101]);
+      expect(() => new OpenFrame([s1, s2])).toThrow(LabelsNotUniqueError);
+      expect(() => new OpenFrame([s1, s2])).toThrow("must be unique");
+    });
+
+    it("makePortfolio throws NoWeightsError when no weights and no strategy", () => {
+      const frame = simulatedFrame({ numAssets: 2 });
+      frame.weights = null;
+      expect(() => frame.makePortfolio("P")).toThrow(NoWeightsError);
+      expect(() => frame.makePortfolio("P")).toThrow("Weights must be provided");
+    });
+
+    it("makePortfolio with MixedValuetypesError when frame has mix of PRICE and RTRN", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [
+        100,
+        101,
+      ]);
+      const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [
+        0.01,
+        0.02,
+      ]);
+      s2.valuetype = ValueType.RTRN;
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+      expect(() => frame.correlMatrix()).toThrow(MixedValuetypesError);
+      expect(() => frame.correlMatrix()).toThrow("Mix of series types");
+    });
+  });
+
   it("creates from constituents", () => {
     const frame = simulatedFrame({ numAssets: 2 });
     expect(frame.itemCount).toBe(2);

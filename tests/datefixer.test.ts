@@ -7,6 +7,15 @@ import {
 } from "../src/datefixer";
 
 describe("generateCalendarDateRange", () => {
+  it("throws when trading_days is less than 1", () => {
+    expect(() => generateCalendarDateRange(0)).toThrow(
+      "trading_days must be greater than zero",
+    );
+    expect(() => generateCalendarDateRange(-1)).toThrow(
+      "trading_days must be greater than zero",
+    );
+  });
+
   it("with end option returns expected dates (5 days ending 2020-01-10)", () => {
     const dates = generateCalendarDateRange(5, { end: "2020-01-10" });
     expect(dates).toEqual([

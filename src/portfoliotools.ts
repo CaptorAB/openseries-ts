@@ -137,20 +137,32 @@ export function efficientFrontier(
       (i / (frontierPoints - 1)) * (frontierMaxRet - frontierMinRet),
   );
 
+  const invCov = invertMatrix(cov);
+  const ones = new Array(frame.itemCount).fill(1);
+  const A = vecDot(ones, matVec(invCov, meanRets));
+  const B = vecDot(meanRets, matVec(invCov, meanRets));
+  const C = vecDot(ones, matVec(invCov, ones));
+  const det = B * C - A * A;
+
   for (const targetRet of targetRets) {
-    const w = minimizeVolForReturn(
+    const w = solveEfficientWeights(
       meanRets,
       cov,
+      invCov,
       targetRet,
+      A,
+      B,
+      C,
+      det,
       frame.itemCount,
     );
     if (w) {
       let ret = 0;
-      for (let i = 0; i < frame.itemCount; i++) ret += w[i] * meanRets[i];
+      for (let i = 0; i < frame.itemCount; i++) ret += w[i]! * meanRets[i]!;
       let varP = 0;
       for (let i = 0; i < frame.itemCount; i++) {
         for (let j = 0; j < frame.itemCount; j++) {
-          varP += w[i] * w[j] * cov[i][j];
+          varP += w[i]! * w[j]! * cov[i]![j]!;
         }
       }
       const vol = Math.sqrt(varP);
@@ -163,6 +175,8 @@ export function efficientFrontier(
     }
   }
 
+  frontier.sort((a, b) => a.ret - b.ret);
+
   const maxSharpeIdx = frontier.reduce<number>((best, p, i) =>
     p.sharpe > frontier[best].sharpe ? i : best,
   0);
@@ -173,48 +187,129 @@ export function efficientFrontier(
   };
 }
 
-function minimizeVolForReturn(
+function matVec(m: number[][], v: number[]): number[] {
+  return m.map((row) => row.reduce((s, mij, j) => s + mij * v[j], 0));
+}
+
+function vecDot(a: number[], b: number[]): number {
+  return a.reduce((s, ai, i) => s + ai * b[i], 0);
+}
+
+function invertMatrix(m: number[][]): number[][] {
+  const n = m.length;
+  const a = m.map((row) => [...row]);
+  const inv: number[][] = Array.from({ length: n }, (_, i) =>
+    Array.from({ length: n }, (_, j) => (i === j ? 1 : 0)),
+  );
+  for (let col = 0; col < n; col++) {
+    let maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(a[row][col]!) > Math.abs(a[maxRow][col]!)) maxRow = row;
+    }
+    [a[col], a[maxRow]] = [a[maxRow], a[col]];
+    [inv[col], inv[maxRow]] = [inv[maxRow], inv[col]];
+    const pivot = a[col][col];
+    if (pivot === undefined || Math.abs(pivot) < 1e-12) return m;
+    for (let j = 0; j < n; j++) {
+      a[col][j]! /= pivot;
+      inv[col][j]! /= pivot;
+    }
+    for (let row = 0; row < n; row++) {
+      if (row !== col) {
+        const factor = a[row][col]!;
+        for (let j = 0; j < n; j++) {
+          a[row][j]! -= factor * a[col][j]!;
+          inv[row][j]! -= factor * inv[col][j]!;
+        }
+      }
+    }
+  }
+  return inv;
+}
+
+/**
+ * Analytic solution for min-variance portfolio with target return.
+ * Minimizes (1/2) w'Σw s.t. w'μ = targetRet, w'1 = 1.
+ * Solution: w = Σ^(-1)(λ1*μ + λ2*1) where λ1,λ2 from 2x2 linear system.
+ * When solution has negative weights (long-only infeasible), falls back to
+ * projected gradient to find feasible optimum.
+ */
+function solveEfficientWeights(
+  meanRets: number[],
+  cov: number[][],
+  invCov: number[][],
+  targetRet: number,
+  A: number,
+  B: number,
+  C: number,
+  det: number,
+  n: number,
+): number[] | null {
+  if (Math.abs(det) < 1e-14) return null;
+  const lambda1 = (C * targetRet - A) / det;
+  const lambda2 = (B - A * targetRet) / det;
+  const ones = new Array(n).fill(1);
+  const linearCombo = meanRets.map((mu, i) => lambda1 * mu + lambda2 * ones[i]!);
+  const w = matVec(invCov, linearCombo);
+
+  const tol = 1e-10;
+  const allNonNeg = w.every((wi) => wi >= -tol);
+  if (allNonNeg) {
+    const sum = w.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum) < 1e-12) return null;
+    return w.map((wi) => Math.max(0, wi) / sum);
+  }
+
+  return minimizeVolForReturnProjected(meanRets, cov, targetRet, n);
+}
+
+/**
+ * Projected gradient descent for min-variance subject to w'μ = targetRet,
+ * w'1 = 1, w >= 0. Clips target to achievable range [rGmv, max(μ)] when needed.
+ */
+function minimizeVolForReturnProjected(
   meanRets: number[],
   cov: number[][],
   targetRet: number,
   n: number,
 ): number[] {
+  const rMax = Math.max(...meanRets);
+  const rMin = Math.min(...meanRets);
+  const target = Math.max(rMin, Math.min(rMax, targetRet));
+
+  if (target >= rMax - 1e-10) {
+    const imax = meanRets.indexOf(rMax);
+    const w = new Array(n).fill(0);
+    w[imax] = 1;
+    return w;
+  }
+  if (target <= rMin + 1e-10) {
+    const imin = meanRets.indexOf(rMin);
+    const w = new Array(n).fill(0);
+    w[imin] = 1;
+    return w;
+  }
+
   let w = new Array(n).fill(1 / n);
-  const maxIter = 200;
+  const maxIter = 2000;
   const tol = 1e-6;
+  let step = 0.4;
 
   for (let iter = 0; iter < maxIter; iter++) {
-    let ret = 0;
-    for (let i = 0; i < n; i++) ret += w[i] * meanRets[i];
-
-    let varP = 0;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        varP += w[i] * w[j] * cov[i][j];
-      }
-    }
-    const vol = Math.sqrt(Math.max(0, varP));
-    if (vol < 1e-12) return w;
-
-    const grad: number[] = [];
-    for (let i = 0; i < n; i++) {
-      let g = 0;
-      for (let j = 0; j < n; j++) g += cov[i][j] * w[j];
-      grad[i] = g / vol;
-    }
-
-    const retErr = ret - targetRet;
-    const scale = 0.1;
+    const grad = matVec(cov, w);
+    let ret = vecDot(w, meanRets);
+    const retErr = ret - target;
     const wNew = w.map((wi, i) => {
-      let dw = grad[i] * scale;
-      if (retErr > 0) dw += meanRets[i] * scale * 0.1;
-      else if (retErr < 0) dw -= meanRets[i] * scale * 0.1;
-      return Math.max(0, Math.min(1, wi - dw));
+      let d = wi - step * grad[i]!;
+      d += step * 2 * retErr * meanRets[i]!;
+      return Math.max(0, d);
     });
     const sum = wNew.reduce((a, b) => a + b, 0);
+    if (sum < 1e-12) return w;
     w = wNew.map((x) => x / sum);
-
-    if (Math.abs(retErr) < tol) break;
+    ret = vecDot(w, meanRets);
+    if (Math.abs(ret - target) < tol) return w;
+    if (iter > 200) step *= 0.995;
   }
   return w;
 }
