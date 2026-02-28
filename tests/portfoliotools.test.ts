@@ -9,17 +9,21 @@ import { ValueType } from "../src/types";
 const to9 = (x: number) => x.toFixed(9);
 
 describe("simulatePortfolios", () => {
-  it("first portfolio ret, stdev, sharpe match expected (seed 71)", () => {
-    const frame = simulatedFrame();
+  it("first portfolio ret, stdev, sharpe match expected (normal 0.07/0.15, seed 71)", () => {
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const sims = simulatePortfolios(frame, 100, 71);
     expect(sims.length).toBeGreaterThan(0);
-    expect(to9(sims[0].ret)).toBe("-322.938388554");
-    expect(to9(sims[0].stdev)).toBe("406.375423852");
-    expect(to9(sims[0].sharpe)).toBe("-0.794679918");
+    expect(to9(sims[0].ret)).toBe("0.040790126");
+    expect(to9(sims[0].stdev)).toBe("0.085354672");
+    expect(to9(sims[0].sharpe)).toBe("0.477889785");
   });
 
   it("weights sum to 1 for each portfolio", () => {
-    const frame = simulatedFrame();
+    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
     const sims = simulatePortfolios(frame, 50, 42);
     for (const s of sims) {
       expect(s.weights.reduce((a, b) => a + b, 0)).toBeCloseTo(1);
@@ -29,7 +33,7 @@ describe("simulatePortfolios", () => {
 
 describe("efficientFrontier", () => {
   it("returns frontier and simulated with correct structure (seed 71)", () => {
-    const frame = simulatedFrame();
+    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
     const ef = efficientFrontier(frame, 500, 71, 20);
     expect(ef.frontier.length).toBe(20);
     expect(ef.simulated.length).toBeGreaterThan(0);
@@ -51,7 +55,7 @@ describe("efficientFrontier", () => {
   });
 
   it("frontier points have increasing return", () => {
-    const frame = simulatedFrame();
+    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
     const ef = efficientFrontier(frame, 500, 71, 20);
     const rets = ef.frontier.map((p) => p.ret).filter((r) => Number.isFinite(r));
     if (rets.length >= 2) {
@@ -62,7 +66,13 @@ describe("efficientFrontier", () => {
   });
 
   it("handles many frontier points with divergent asset returns", () => {
-    const frame = simulatedFrame({ numAssets: 4, days: 300 });
+    const frame = simulatedFrame({
+      numAssets: 4,
+      days: 300,
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const ef = efficientFrontier(frame, 800, 71, 80);
     expect(ef.frontier.length).toBeGreaterThan(0);
     expect(ef.maxSharpe).toBeDefined();

@@ -141,7 +141,7 @@ export class OpenTimeSeries {
       name: this.name,
       label: this.label,
       dates: [...this.dates],
-      values: [...this.values],
+      values: [...this.getTsdfValues()],
       valuetype: this.valuetype,
       currency: this.currency,
       localCcy: this.localCcy,
