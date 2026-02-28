@@ -1724,7 +1724,7 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif; margin: 24px; background: #fff; color: #253551; }
-    .header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #e0e0e0; min-height: 80px; }
+    .header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; min-height: 80px; }
     .header-logo { display: flex; align-items: center; }
     .header-logo img { height: 60px; width: auto; max-width: 270px; object-fit: contain; }
     .header-title { grid-column: 2; text-align: center; font-size: 2.625rem; font-weight: 600; margin: 0; line-height: 1.2; }
@@ -1740,10 +1740,10 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
     .charts-left { display: flex; flex-direction: column; gap: 24px; }
     .chart-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; }
     .chart-wrapper { height: 280px; position: relative; }
-    .chart-section-table { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+    .chart-section-table { min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; }
     table { border-collapse: collapse; width: 100%; font-size: 0.8125rem; table-layout: fixed; }
     th, td { padding: 6px 12px; text-align: right; border-bottom: 1px solid #eee; }
-    th { font-weight: 600; color: #253551; text-align: left; }
+    th { font-weight: 600; color: #253551; text-align: right; }
     tr:first-child th { border-bottom: 2px solid #333; }
     .legend { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 24px; justify-content: center; font-size: 0.8125rem; color: #253551; }
     .legend-item { display: flex; align-items: center; gap: 8px; }
