@@ -1684,12 +1684,13 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
       .header-logo img { height: 54px; max-width: 210px; }
       .header-title { grid-column: 1; grid-row: 2; font-size: 2.025rem; }
     }
-    .main { max-width: min(1600px, 96vw); margin: 0 auto; }
-    .charts { display: grid; grid-template-columns: 1.2fr minmax(300px, 1fr); gap: 24px; align-items: stretch; }
+    .main { max-width: min(1600px, 96vw); margin: 0 auto; width: 100%; }
+    .charts { display: grid; grid-template-columns: 1.2fr minmax(300px, 1fr); gap: 24px; align-items: stretch; min-width: 0; }
     @media (max-width: 1000px) { .charts { grid-template-columns: 1fr; } }
-    .charts-left { display: flex; flex-direction: column; gap: 24px; }
-    .chart-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; }
-    .chart-wrapper { height: 280px; position: relative; }
+    .charts-left { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+    .chart-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; min-width: 0; }
+    .chart-wrapper { height: 280px; position: relative; min-width: 0; width: 100%; }
+    .chart-wrapper canvas { max-width: 100%; }
     .chart-section-table { min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; }
     table { border-collapse: collapse; width: 100%; font-size: 0.8125rem; table-layout: fixed; }
     th, td { padding: 6px 12px; text-align: right; border-bottom: 1px solid #eee; }
