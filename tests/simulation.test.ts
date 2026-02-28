@@ -19,6 +19,15 @@ describe("ReturnSimulation", () => {
       expect(a.dframe[0]).toEqual(b.dframe[0]);
     });
 
+    it("randomGenerator without seed produces values in [0,1)", () => {
+      const rng = randomGenerator();
+      for (let i = 0; i < 10; i++) {
+        const v = rng();
+        expect(v).toBeGreaterThanOrEqual(0);
+        expect(v).toBeLessThan(1);
+      }
+    });
+
     it("fromGbm produces identical results with same seed", () => {
       const a = ReturnSimulation.fromGbm(1, 0.05, 0.1, 100, 252, 42);
       const b = ReturnSimulation.fromGbm(1, 0.05, 0.1, 100, 252, 42);

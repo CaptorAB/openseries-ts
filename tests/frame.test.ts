@@ -2,10 +2,12 @@ import { describe, it, expect } from "vitest";
 import { OpenTimeSeries } from "../src/series";
 import { OpenFrame } from "../src/frame";
 import { ValueType } from "../src/types";
+import { ReturnSimulation } from "../src/simulation";
 import {
   LabelsNotUniqueError,
   MixedValuetypesError,
   NoWeightsError,
+  type LiteralPortfolioWeightings,
 } from "../src/types";
 import { simulatedFrame } from "./fixtures";
 
@@ -112,5 +114,101 @@ describe("OpenFrame", () => {
     const port = frame.makePortfolio("P", "max_div");
     expect(port.values[0]).toBeCloseTo(1);
     expect(port.values.length).toBe(frame.length);
+  });
+
+  it("aligns series with non-overlapping date ranges (getVal branches)", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-02", "2020-01-03"], [100, 101]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-05"], [200, 201, 202]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    expect(frame.tsdf.dates).toContain("2020-01-01");
+    expect(frame.tsdf.dates).toContain("2020-01-05");
+    expect(frame.length).toBeGreaterThan(2);
+  });
+
+  it("ensureReturns uses RTRN path when all constituents are RTRN", () => {
+    const sim = ReturnSimulation.fromGbm(2, 0.05, 0.1, 100, 252, 71);
+    const dc = sim.toDateColumns("Asset", { end: "2020-06-30" });
+    const constituents = dc.columns.map((col) =>
+      OpenTimeSeries.fromArrays(col.name, dc.dates, col.values, {
+        valuetype: ValueType.RTRN,
+      }),
+    );
+    const frame = new OpenFrame(constituents, [0.5, 0.5]);
+    const corr = frame.correlMatrix();
+    expect(corr.length).toBe(2);
+  });
+
+  it("mergeSeries inner keeps only common dates", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-02", "2020-01-03"], [200, 201]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    frame.mergeSeries("inner");
+    expect(frame.tsdf.dates).toEqual(["2020-01-02", "2020-01-03"]);
+  });
+
+  it("correlMatrix returns NaN when fewer than 2 overlapping observations", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01"], [200]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const corr = frame.correlMatrix();
+    expect(corr[0][0]).toBe(1);
+    expect(corr[1][1]).toBe(1);
+    expect(corr[0][1]).toBeNaN();
+    expect(corr[1][0]).toBeNaN();
+  });
+
+  it("trackingError with negative baseColumn indexes from end", () => {
+    const frame = simulatedFrame({ numAssets: 2 });
+    const te = frame.trackingError(-1);
+    expect(te[te.length - 1]).toBe(0);
+  });
+
+  it("infoRatio returns NaN when vol is zero (identical series)", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+    const s2 = s1.fromDeepcopy();
+    s2.label = "B";
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const ir = frame.infoRatio(0);
+    expect(ir[0]).toBe(0);
+    expect(ir[1]).toBeNaN();
+  });
+
+  it("beta returns NaN when market variance is zero", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03"], [50, 50, 50]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    expect(frame.beta(0, 1)).toBeNaN();
+  });
+
+  it("addTimeseries merges and updates labels", () => {
+    const frame = simulatedFrame({ numAssets: 2 });
+    const extra = OpenTimeSeries.fromArrays("C", ["2020-01-01", "2020-01-02"], [100, 101]);
+    frame.addTimeseries(extra);
+    expect(frame.itemCount).toBe(3);
+    expect(frame.columnLabels).toContain("C");
+  });
+
+  it("makePortfolio max_div with identical series handles singular cov", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+    const s2 = s1.fromDeepcopy();
+    s2.label = "B";
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const port = frame.makePortfolio("P", "max_div");
+    expect(port.values.length).toBe(3);
+  });
+
+  it("makePortfolio falls back to eq_weights for unknown strategy", () => {
+    const frame = simulatedFrame({ numAssets: 2 });
+    const port = frame.makePortfolio("P", "unknown" as LiteralPortfolioWeightings);
+    expect(port.values.length).toBeGreaterThan(0);
+    expect(port.values[0]).toBeCloseTo(1);
+  });
+
+  it("makePortfolio max_div with zero-variance series (invertMatrix singular)", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [50, 50, 50]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03"], [50, 50, 50]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const port = frame.makePortfolio("P", "max_div");
+    expect(port.values.length).toBe(3);
   });
 });

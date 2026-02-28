@@ -582,9 +582,13 @@ function timeseriesChain(front, back, oldFee = 0) {
   if (firstIdx >= newDates.length || parseDate(newDates[firstIdx]) > parseDate(oldDates[oldDates.length - 1]))
     throw new DateAlignmentError("Timeseries dates must overlap to allow chaining");
   const first = newDates[firstIdx];
+  const oldDateToVal = /* @__PURE__ */ new Map();
+  for (let i = 0; i < oldDates.length; i++) {
+    oldDateToVal.set(oldDates[i], oldVals[i]);
+  }
   const frontDates = oldDates.filter((d) => d < first);
-  const frontVals = frontDates.map((d) => oldVals[oldDates.indexOf(d)]);
-  const oldValAtFirst = oldVals[oldDates.indexOf(first)];
+  const frontVals = frontDates.map((d) => oldDateToVal.get(d));
+  const oldValAtFirst = oldDateToVal.get(first);
   const newValAtFirst = newVals[firstIdx];
   const scale = newValAtFirst / oldValAtFirst;
   const scaledFront = frontVals.map((v) => v * scale);
@@ -607,31 +611,43 @@ function timeseriesChain(front, back, oldFee = 0) {
 function alignSeriesToCommonDates(series, how = "outer") {
   const allDates = /* @__PURE__ */ new Set();
   for (const s of series) {
-    for (const d of s.tsdf.map((r) => r.date)) {
-      allDates.add(d);
+    for (const r of s.tsdf) {
+      allDates.add(r.date);
     }
   }
   let dates = Array.from(allDates).sort();
   if (how === "inner") {
-    const inAll = dates.filter(
-      (d) => series.every((s) => s.tsdf.some((r) => r.date === d))
-    );
-    dates = inAll;
+    const dateSets = series.map((s) => new Set(s.tsdf.map((r) => r.date)));
+    dates = dates.filter((d) => dateSets.every((set) => set.has(d)));
   }
-  const getVal = (s, d) => {
-    const tsdf = s.tsdf;
-    const idx = tsdf.findIndex((r) => r.date === d);
-    if (idx >= 0) return tsdf[idx].value;
-    const dates2 = tsdf.map((r) => r.date);
-    for (let i = 0; i < dates2.length - 1; i++) {
-      if (dates2[i] < d && d < dates2[i + 1]) return tsdf[i].value;
+  const seriesMaps = series.map((s) => {
+    const dateToVal = /* @__PURE__ */ new Map();
+    const seriesDates = [];
+    for (const r of s.tsdf) {
+      dateToVal.set(r.date, r.value);
+      seriesDates.push(r.date);
     }
-    if (d < dates2[0]) return tsdf[0].value;
-    if (d > dates2[dates2.length - 1]) return tsdf[tsdf.length - 1].value;
-    return null;
+    seriesDates.sort();
+    return { dateToVal, seriesDates };
+  });
+  const getVal = ({ dateToVal, seriesDates }, d) => {
+    const exact = dateToVal.get(d);
+    if (exact !== void 0) return exact;
+    if (seriesDates.length === 0) return null;
+    if (d < seriesDates[0]) return dateToVal.get(seriesDates[0]) ?? null;
+    if (d > seriesDates[seriesDates.length - 1])
+      return dateToVal.get(seriesDates[seriesDates.length - 1]) ?? null;
+    let lo = 0;
+    let hi = seriesDates.length - 1;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (seriesDates[mid] <= d) lo = mid;
+      else hi = mid - 1;
+    }
+    return dateToVal.get(seriesDates[lo]) ?? null;
   };
   const valuesBySeries = series.map(
-    (s) => dates.map((d) => getVal(s, d) ?? NaN)
+    (s, i) => dates.map((d) => getVal(seriesMaps[i], d) ?? NaN)
   );
   const ffilled = valuesBySeries.map((vals) => {
     let last = vals[0];
@@ -1236,11 +1252,22 @@ function efficientFrontier(frame, numPorts = 5e3, seed = 71, frontierPoints = 50
     { length: frontierPoints },
     (_, i) => frontierMinRet + i / (frontierPoints - 1) * (frontierMaxRet - frontierMinRet)
   );
+  const invCov = invertMatrix(cov);
+  const ones = new Array(frame.itemCount).fill(1);
+  const A = vecDot(ones, matVec(invCov, meanRets));
+  const B = vecDot(meanRets, matVec(invCov, meanRets));
+  const C = vecDot(ones, matVec(invCov, ones));
+  const det = B * C - A * A;
   for (const targetRet of targetRets) {
-    const w = minimizeVolForReturn(
+    const w = solveEfficientWeights(
       meanRets,
       cov,
+      invCov,
       targetRet,
+      A,
+      B,
+      C,
+      det,
       frame.itemCount
     );
     if (w) {
@@ -1261,6 +1288,7 @@ function efficientFrontier(frame, numPorts = 5e3, seed = 71, frontierPoints = 50
       });
     }
   }
+  frontier.sort((a, b) => a.ret - b.ret);
   const maxSharpeIdx = frontier.reduce(
     (best, p, i) => p.sharpe > frontier[best].sharpe ? i : best,
     0
@@ -1271,38 +1299,95 @@ function efficientFrontier(frame, numPorts = 5e3, seed = 71, frontierPoints = 50
     maxSharpe: frontier[maxSharpeIdx]
   };
 }
-function minimizeVolForReturn(meanRets, cov, targetRet, n) {
-  let w = new Array(n).fill(1 / n);
-  const maxIter = 200;
-  const tol = 1e-6;
-  for (let iter = 0; iter < maxIter; iter++) {
-    let ret = 0;
-    for (let i = 0; i < n; i++) ret += w[i] * meanRets[i];
-    let varP = 0;
-    for (let i = 0; i < n; i++) {
-      for (let j = 0; j < n; j++) {
-        varP += w[i] * w[j] * cov[i][j];
+function matVec(m, v) {
+  return m.map((row) => row.reduce((s, mij, j) => s + mij * v[j], 0));
+}
+function vecDot(a, b) {
+  return a.reduce((s, ai, i) => s + ai * b[i], 0);
+}
+function invertMatrix(m) {
+  const n = m.length;
+  const a = m.map((row) => [...row]);
+  const inv = Array.from(
+    { length: n },
+    (_, i) => Array.from({ length: n }, (_2, j) => i === j ? 1 : 0)
+  );
+  for (let col = 0; col < n; col++) {
+    let maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(a[row][col]) > Math.abs(a[maxRow][col])) maxRow = row;
+    }
+    [a[col], a[maxRow]] = [a[maxRow], a[col]];
+    [inv[col], inv[maxRow]] = [inv[maxRow], inv[col]];
+    const pivot = a[col][col];
+    if (pivot === void 0 || Math.abs(pivot) < 1e-12) return m;
+    for (let j = 0; j < n; j++) {
+      a[col][j] /= pivot;
+      inv[col][j] /= pivot;
+    }
+    for (let row = 0; row < n; row++) {
+      if (row !== col) {
+        const factor = a[row][col];
+        for (let j = 0; j < n; j++) {
+          a[row][j] -= factor * a[col][j];
+          inv[row][j] -= factor * inv[col][j];
+        }
       }
     }
-    const vol = Math.sqrt(Math.max(0, varP));
-    if (vol < 1e-12) return w;
-    const grad = [];
-    for (let i = 0; i < n; i++) {
-      let g = 0;
-      for (let j = 0; j < n; j++) g += cov[i][j] * w[j];
-      grad[i] = g / vol;
-    }
-    const retErr = ret - targetRet;
-    const scale = 0.1;
+  }
+  return inv;
+}
+function solveEfficientWeights(meanRets, cov, invCov, targetRet, A, B, C, det, n) {
+  if (Math.abs(det) < 1e-14) return null;
+  const lambda1 = (C * targetRet - A) / det;
+  const lambda2 = (B - A * targetRet) / det;
+  const ones = new Array(n).fill(1);
+  const linearCombo = meanRets.map((mu, i) => lambda1 * mu + lambda2 * ones[i]);
+  const w = matVec(invCov, linearCombo);
+  const tol = 1e-10;
+  const allNonNeg = w.every((wi) => wi >= -tol);
+  if (allNonNeg) {
+    const sum = w.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum) < 1e-12) return null;
+    return w.map((wi) => Math.max(0, wi) / sum);
+  }
+  return minimizeVolForReturnProjected(meanRets, cov, targetRet, n);
+}
+function minimizeVolForReturnProjected(meanRets, cov, targetRet, n) {
+  const rMax = Math.max(...meanRets);
+  const rMin = Math.min(...meanRets);
+  const target = Math.max(rMin, Math.min(rMax, targetRet));
+  if (target >= rMax - 1e-10) {
+    const imax = meanRets.indexOf(rMax);
+    const w2 = new Array(n).fill(0);
+    w2[imax] = 1;
+    return w2;
+  }
+  if (target <= rMin + 1e-10) {
+    const imin = meanRets.indexOf(rMin);
+    const w2 = new Array(n).fill(0);
+    w2[imin] = 1;
+    return w2;
+  }
+  let w = new Array(n).fill(1 / n);
+  const maxIter = 2e3;
+  const tol = 1e-6;
+  let step = 0.4;
+  for (let iter = 0; iter < maxIter; iter++) {
+    const grad = matVec(cov, w);
+    let ret = vecDot(w, meanRets);
+    const retErr = ret - target;
     const wNew = w.map((wi, i) => {
-      let dw = grad[i] * scale;
-      if (retErr > 0) dw += meanRets[i] * scale * 0.1;
-      else if (retErr < 0) dw -= meanRets[i] * scale * 0.1;
-      return Math.max(0, Math.min(1, wi - dw));
+      let d = wi - step * grad[i];
+      d += step * 2 * retErr * meanRets[i];
+      return Math.max(0, d);
     });
     const sum = wNew.reduce((a, b) => a + b, 0);
+    if (sum < 1e-12) return w;
     w = wNew.map((x) => x / sum);
-    if (Math.abs(retErr) < tol) break;
+    ret = vecDot(w, meanRets);
+    if (Math.abs(ret - target) < tol) return w;
+    if (iter > 200) step *= 0.995;
   }
   return w;
 }

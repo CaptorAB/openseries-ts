@@ -59,9 +59,62 @@ describe("OpenTimeSeries", () => {
     expect(series.lastIdx).toBe("2020-01-06");
   });
 
+  it("fromObject accepts Record<string, number>", () => {
+    const obj: Record<string, number> = {
+      "2020-01-01": 100,
+      "2020-01-02": 101,
+      "2020-01-03": 102,
+    };
+    const series = OpenTimeSeries.fromObject(obj);
+    expect(series.length).toBe(3);
+    expect(series.getTsdfValues()).toEqual([100, 101, 102]);
+  });
+
+  it("fromObject accepts array of {date, value}", () => {
+    const arr = [
+      { date: "2020-01-01", value: 100 },
+      { date: "2020-01-02", value: 101 },
+    ];
+    const series = OpenTimeSeries.fromObject(arr);
+    expect(series.length).toBe(2);
+    expect(series.getTsdfValues()).toEqual([100, 101]);
+  });
+
+  it("setNewLabel updates label and valuetype", () => {
+    const s = simulatedSeries("Orig");
+    s.setNewLabel("NewLabel");
+    expect(s.label).toBe("NewLabel");
+    s.setNewLabel(undefined, ValueType.RTRN);
+    expect(s.valuetype).toBe(ValueType.RTRN);
+  });
+
+  it("arithmeticRet with monthsFromLast exercises date slicing", () => {
+    const s = simulatedSeries("Test", { days: 300 });
+    const ret = s.arithmeticRet({ monthsFromLast: 1 });
+    expect(Number.isFinite(ret)).toBe(true);
+  });
+
+  it("arithmeticRet with fromDate and toDate", () => {
+    const s = simulatedSeries("Test");
+    const ret = s.arithmeticRet({ fromDate: "2020-06-01", toDate: "2020-09-01" });
+    expect(typeof ret).toBe("number");
+  });
+
+  it("vol with periodsInYearFixed", () => {
+    const s = simulatedSeries("Test");
+    const v = s.vol({ periodsInYearFixed: 252 });
+    expect(Number.isFinite(v)).toBe(true);
+  });
+
   it("computes value return", () => {
     const series = OpenTimeSeries.fromArrays("Test", ["2020-01-01", "2020-01-02"], [100, 110]);
     expect(series.valueRet()).toBeCloseTo(0.1);
+  });
+
+  it("valueRet returns NaN when slice has fewer than 2 values", () => {
+    const series = OpenTimeSeries.fromArrays("Test", ["2020-01-01", "2020-01-02"], [100, 110]);
+    const ret = series.valueRet({ fromDate: "2020-01-02", toDate: "2020-01-02" });
+    expect(ret).toBeNaN();
   });
 
   it("converts to returns and back", () => {
@@ -227,6 +280,39 @@ describe("timeseriesChain", () => {
     );
     expect(() => timeseriesChain(front, back)).toThrow(DateAlignmentError);
     expect(() => timeseriesChain(front, back)).toThrow("overlap");
+  });
+
+  it("chains with oldFee applies fee adjustment (PRICE series)", () => {
+    const front = OpenTimeSeries.fromArrays(
+      "Front",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [100, 101, 102],
+    );
+    const back = OpenTimeSeries.fromArrays(
+      "Back",
+      ["2020-01-02", "2020-01-03", "2020-01-06"],
+      [102, 103, 104],
+    );
+    const chained = timeseriesChain(front, back, 0.01);
+    expect(chained.length).toBeGreaterThan(2);
+    expect(chained.valuetype).toBe(ValueType.PRICE);
+  });
+
+  it("chains with oldFee on RTRN series", () => {
+    const front = OpenTimeSeries.fromArrays(
+      "Front",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [0, 0.01, 0.02],
+      { valuetype: ValueType.RTRN },
+    );
+    const back = OpenTimeSeries.fromArrays(
+      "Back",
+      ["2020-01-02", "2020-01-03", "2020-01-06"],
+      [0.02, 0.03, 0.04],
+      { valuetype: ValueType.RTRN },
+    );
+    const chained = timeseriesChain(front, back, 0.01);
+    expect(chained.length).toBeGreaterThan(2);
   });
 
   it("numerical result: chained length and values match expected (simulated seed 90)", () => {

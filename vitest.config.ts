@@ -11,7 +11,18 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "text-summary"],
       include: ["src/**/*.ts"],
-      exclude: ["src/**/*.d.ts", "**/*.test.ts", "**/*.spec.ts"],
+      exclude: [
+        "src/**/*.d.ts",
+        "src/index.ts",
+        "**/*.test.ts",
+        "**/*.spec.ts",
+      ],
+      thresholds: {
+        statements: 95,
+        branches: 87.5,
+        functions: 95,
+        lines: 95,
+      },
     },
   },
   resolve: {

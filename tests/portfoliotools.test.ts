@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { simulatePortfolios, efficientFrontier } from "../src/portfoliotools";
 import { simulatedFrame } from "./fixtures";
+import { OpenFrame } from "../src/frame";
+import { OpenTimeSeries } from "../src/series";
+import { ReturnSimulation } from "../src/simulation";
+import { ValueType } from "../src/types";
 
 const to9 = (x: number) => x.toFixed(9);
 
@@ -30,6 +34,20 @@ describe("efficientFrontier", () => {
     expect(ef.frontier.length).toBe(20);
     expect(ef.simulated.length).toBeGreaterThan(0);
     expect(ef.maxSharpe).toBeDefined();
+  });
+
+  it("works with RTRN constituents (uses returns directly)", () => {
+    const sim = ReturnSimulation.fromGbm(3, 0.05, 0.1, 252, 252, 71);
+    const dc = sim.toDateColumns("Asset", { end: "2020-12-31" });
+    const constituents = Array.from({ length: 3 }, (_, i) =>
+      OpenTimeSeries.fromDateColumns(dc, {
+        columnIndex: i,
+        valuetype: ValueType.RTRN,
+      }),
+    );
+    const frame = new OpenFrame(constituents, [1 / 3, 1 / 3, 1 / 3]);
+    const ef = efficientFrontier(frame, 500, 71, 20);
+    expect(ef.frontier.length).toBe(20);
   });
 
   it("frontier points have increasing return", () => {

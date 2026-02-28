@@ -6,6 +6,24 @@ import {
   dateToStr,
 } from "../src/datefixer";
 
+describe("dateFix", () => {
+  it("returns Date when given string", () => {
+    const d = dateFix("2020-01-15");
+    expect(d).toBeInstanceOf(Date);
+    expect(d.toISOString().slice(0, 10)).toBe("2020-01-15");
+  });
+
+  it("returns same Date when given Date instance", () => {
+    const input = new Date("2020-06-15");
+    expect(dateFix(input)).toBe(input);
+  });
+
+  it("returns new Date when given non-string non-Date (e.g. number)", () => {
+    const d = dateFix(0 as unknown as string);
+    expect(d).toBeInstanceOf(Date);
+  });
+});
+
 describe("generateCalendarDateRange", () => {
   it("throws when trading_days is less than 1", () => {
     expect(() => generateCalendarDateRange(0)).toThrow(

@@ -5,6 +5,7 @@ import {
   MixedValuetypesError,
   NoWeightsError,
   LabelsNotUniqueError,
+  IncorrectArgumentComboError,
 } from "../src/types";
 
 describe("Error classes", () => {
@@ -39,6 +40,13 @@ describe("Error classes", () => {
   it("LabelsNotUniqueError has correct name and message", () => {
     const err = new LabelsNotUniqueError("test message");
     expect(err.name).toBe("LabelsNotUniqueError");
+    expect(err.message).toBe("test message");
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("IncorrectArgumentComboError has correct name and message", () => {
+    const err = new IncorrectArgumentComboError("test message");
+    expect(err.name).toBe("IncorrectArgumentComboError");
     expect(err.message).toBe("test message");
     expect(err).toBeInstanceOf(Error);
   });
