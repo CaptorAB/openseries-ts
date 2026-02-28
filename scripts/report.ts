@@ -16,9 +16,15 @@
  *   --iris                Use Iris Bond + Benchmark preset IDs
  *   --title "Title"       Report title
  *   --countries "SE,US"   Country codes for business-day metrics (default: SE)
+ *   --from-date YYYY-MM-DD  Truncate to start from this date (tail the period)
+ *   --to-date YYYY-MM-DD    Truncate to end at this date (tail the period)
  *   --filename path       Output path (default: ~/Documents/report.html, or ~/ if Documents missing)
  *   --no-open             Do not auto-open in browser
  *   --no-logo             Omit logo from report
+ *
+ * Examples:
+ *   npm run report:iris -- --from-date 2023-01-01 --to-date 2024-12-31
+ *   npm run report -- --ids id1 id2 --from-date 2020-06-01
  */
 
 const IRIS_ID = "5b72a10c23d27735104e0576";
@@ -50,6 +56,8 @@ function parseArgs(args: string[]): {
   ids: string[];
   title: string;
   countries: CountryCode[];
+  fromDate: string | undefined;
+  toDate: string | undefined;
   filename: string;
   autoOpen: boolean;
   addLogo: boolean;
@@ -57,6 +65,8 @@ function parseArgs(args: string[]): {
 } {
   let title = "Captor Portfolio Report";
   let countries: CountryCode[] = ["SE"];
+  let fromDate: string | undefined;
+  let toDate: string | undefined;
   let filename = "";
   let autoOpen = true;
   let addLogo = true;
@@ -67,6 +77,12 @@ function parseArgs(args: string[]): {
     const a = args[i];
     if (a === "--title" && args[i + 1]) {
       title = args[i + 1]!;
+      i++;
+    } else if (a === "--from-date" && args[i + 1]) {
+      fromDate = args[i + 1]!;
+      i++;
+    } else if (a === "--to-date" && args[i + 1]) {
+      toDate = args[i + 1]!;
       i++;
     } else if (a === "--countries" && args[i + 1]) {
       countries = args[i + 1]!
@@ -103,6 +119,8 @@ function parseArgs(args: string[]): {
     ids: finalIds,
     title: finalTitle,
     countries,
+    fromDate,
+    toDate,
     filename,
     autoOpen,
     addLogo,
@@ -130,6 +148,17 @@ async function main(): Promise<void> {
 
   const frame = new OpenFrame(series, null, { countries: opts.countries });
   frame.mergeSeries("inner");
+
+  if (opts.fromDate ?? opts.toDate) {
+    frame.truncFrame({
+      startCut: opts.fromDate,
+      endCut: opts.toDate,
+      where: "both",
+    });
+    console.log(
+      `Truncated to ${frame.firstIdx} .. ${frame.lastIdx}`,
+    );
+  }
 
   const html = reportHtml(frame, {
     title: opts.title,
