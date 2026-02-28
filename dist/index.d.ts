@@ -410,4 +410,41 @@ interface ReportOptions {
  */
 declare function reportHtml(frame: OpenFrame, options?: ReportOptions): string;
 
-export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };
+/**
+ * Full-page series plot (line chart) output.
+ * Analogous to Python openseries plot_series: single full-page HTML with optional title.
+ */
+
+interface PlotSeriesOptions {
+    /** Optional title above the chart. */
+    title?: string;
+    /** Logo URL (e.g. company logo). Shown in upper left when addLogo is true. */
+    logoUrl?: string;
+    /** If true, show logo in upper left. Default: true. */
+    addLogo?: boolean;
+    /** Output file path. Default: ~/Documents/plot.html (or ~/ if Documents missing). */
+    filename?: string;
+    /** If true, open the HTML file in the default browser. Default: true. */
+    autoOpen?: boolean;
+}
+/**
+ * Generate full-page HTML with a line chart of the series (or multiple series).
+ * Plots cumulative returns (100 base) like Python plot_series.
+ * Works with OpenTimeSeries or OpenFrame. For OpenFrame, use mergeSeries("inner") first.
+ *
+ * @param seriesOrFrame - OpenTimeSeries or OpenFrame
+ * @param options - Optional title
+ * @returns HTML string
+ */
+declare function plotSeriesHtml(seriesOrFrame: OpenTimeSeries | OpenFrame, options?: PlotSeriesOptions): string;
+/**
+ * Generate full-page series plot HTML, write to file, and optionally open in browser.
+ * Analogous to Python plot_series with auto_open.
+ *
+ * @param seriesOrFrame - OpenTimeSeries or OpenFrame (use mergeSeries("inner") for frame)
+ * @param options - Title, filename, autoOpen
+ * @returns Path to the written HTML file
+ */
+declare function plotSeries(seriesOrFrame: OpenTimeSeries | OpenFrame, options?: PlotSeriesOptions): Promise<string>;
+
+export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type PlotSeriesOptions, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, plotSeries, plotSeriesHtml, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };

@@ -54,6 +54,8 @@ __export(index_exports, {
   mean: () => mean,
   offsetBusinessDays: () => offsetBusinessDays,
   pctChange: () => pctChange,
+  plotSeries: () => plotSeries,
+  plotSeriesHtml: () => plotSeriesHtml,
   prevBusinessDay: () => prevBusinessDay,
   quantile: () => quantile,
   randomGenerator: () => randomGenerator,
@@ -2026,6 +2028,227 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
 </body>
 </html>`;
 }
+
+// src/plot.ts
+var import_node_fs = require("fs");
+var import_node_os = require("os");
+var import_node_path = require("path");
+var import_open = __toESM(require("open"), 1);
+var DEFAULT_LOGO_URL2 = "https://sales.captor.se/captor_logo_sv_1600_icketransparent.png";
+var DEFAULT_TITLE = "Series Plot";
+function defaultOutputDir() {
+  const documents = (0, import_node_path.join)((0, import_node_os.homedir)(), "Documents");
+  return (0, import_node_fs.existsSync)(documents) ? documents : (0, import_node_os.homedir)();
+}
+function seriesToPlotData(series) {
+  if (series instanceof OpenTimeSeries) {
+    return [
+      {
+        name: series.label,
+        dates: series.dates,
+        values: series.values
+      }
+    ];
+  }
+  const frame = series;
+  const { dates, columns } = frame.tsdf;
+  const colsFfilled = columns.map((col) => ffill(col));
+  return frame.columnLabels.map((name, i) => ({
+    name,
+    dates,
+    values: colsFfilled[i] ?? []
+  }));
+}
+function toCumulativeReturns(data) {
+  return data.map((s) => {
+    const vals = ffill(s.values);
+    const rets = pctChange(vals);
+    rets[0] = 0;
+    const cum = [100];
+    for (let i = 1; i < rets.length; i++) {
+      cum.push((cum[i - 1] ?? 0) * (1 + rets[i]));
+    }
+    return { name: s.name, dates: s.dates, values: cum };
+  });
+}
+var COLORWAY = [
+  "#66725B",
+  "#D0C0B1",
+  "#253551",
+  "#8D929D",
+  "#611A51",
+  "#402D16",
+  "#5D6C85",
+  "#404752"
+];
+function plotSeriesHtml(seriesOrFrame, options = {}) {
+  const title = options.title ?? DEFAULT_TITLE;
+  const logoUrl = options.addLogo !== false ? options.logoUrl ?? DEFAULT_LOGO_URL2 : "";
+  const rawData = seriesToPlotData(seriesOrFrame);
+  const cumData = toCumulativeReturns(rawData);
+  const chartColors = cumData.map((_, i) => COLORWAY[i % COLORWAY.length]);
+  const logoEl = logoUrl ? `<div class="plot-header-logo"><img src="${logoUrl}" alt="Logo" /></div>` : "<div></div>";
+  const titleEl = title !== "" ? `<h1 class="plot-title">${title}</h1>` : "<div></div>";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${title}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #fff;
+      color: #253551;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .plot-header {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      min-height: 80px;
+    }
+    .plot-header-logo { display: flex; align-items: center; }
+    .plot-header-logo img { height: 60px; width: auto; max-width: 270px; object-fit: contain; }
+    .plot-title { grid-column: 2; text-align: center; font-size: 1.5rem; font-weight: 600; margin: 0; line-height: 1.2; }
+    @media (max-width: 768px) {
+      .plot-header { grid-template-columns: 1fr; grid-template-rows: auto auto; gap: 12px; text-align: center; }
+      .plot-header-logo { justify-content: center; grid-column: 1; }
+      .plot-header-logo img { height: 54px; max-width: 210px; }
+      .plot-title { grid-column: 1; grid-row: 2; font-size: 1.25rem; }
+    }
+    .plot-main {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+    }
+    .plot-wrapper {
+      flex: 1;
+      min-height: 200px;
+      position: relative;
+    }
+    .plot-wrapper canvas { max-width: 100%; }
+    .plot-legend {
+      flex-shrink: 0;
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+      padding-top: 16px;
+      font-size: 0.8125rem;
+      color: #253551;
+    }
+    .plot-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .plot-legend-color {
+      width: 20px;
+      height: 3px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <header class="plot-header">
+    ${logoEl}
+    ${titleEl}
+  </header>
+  <div class="plot-main">
+    <div class="plot-wrapper"><canvas id="plotChart"></canvas></div>
+    <div class="plot-legend" id="legend"></div>
+  </div>
+
+  <script>
+    const cumData = ${JSON.stringify(cumData)};
+    const chartColors = ${JSON.stringify(chartColors)};
+
+    Chart.defaults.font.family = "'Poppins', sans-serif";
+    const ctx = document.getElementById('plotChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        datasets: cumData.map((s, i) => ({
+          label: s.name,
+          data: s.dates.map((d, j) => ({ x: d, y: s.values[j] })),
+          borderColor: chartColors[i],
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          tension: 0.1,
+          pointRadius: 0,
+        })),
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: false,
+            grid: { color: '#EEEEEE' },
+            ticks: { callback: v => v + '%' },
+          },
+          x: {
+            type: 'time',
+            grid: { color: '#EEEEEE' },
+            ticks: { maxRotation: 45 },
+            time: {
+              displayFormats: {
+                millisecond: 'HH:mm:ss',
+                second: 'HH:mm:ss',
+                minute: 'HH:mm',
+                hour: 'HH:mm',
+                day: 'MMM d',
+                week: 'MMM d',
+                month: 'MMM yyyy',
+                quarter: 'qqq yyyy',
+                year: 'yyyy',
+              },
+              tooltipFormat: 'yyyy-MM-dd',
+            },
+          },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+
+    const legendEl = document.getElementById('legend');
+    chartColors.forEach((c, i) => {
+      const d = document.createElement('div');
+      d.className = 'plot-legend-item';
+      d.innerHTML = '<span class="plot-legend-color" style="background:' + c + '"></span><span>' + cumData[i].name + '</span>';
+      legendEl.appendChild(d);
+    });
+  </script>
+</body>
+</html>`;
+}
+async function plotSeries(seriesOrFrame, options = {}) {
+  const { filename, autoOpen = true } = options;
+  const html = plotSeriesHtml(seriesOrFrame, options);
+  const defaultDir = defaultOutputDir();
+  const plotPath = filename !== void 0 ? filename.includes("/") || filename.includes("\\") ? filename : (0, import_node_path.join)(defaultDir, filename) : (0, import_node_path.join)(defaultDir, "plot.html");
+  (0, import_node_fs.writeFileSync)(plotPath, html, "utf-8");
+  if (autoOpen) {
+    await (0, import_open.default)(plotPath, { wait: false });
+  }
+  return plotPath;
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DateAlignmentError,
@@ -2052,6 +2275,8 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
   mean,
   offsetBusinessDays,
   pctChange,
+  plotSeries,
+  plotSeriesHtml,
   prevBusinessDay,
   quantile,
   randomGenerator,

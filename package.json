@@ -13,7 +13,9 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --clean",
     "prepublishOnly": "npm run build",
@@ -26,9 +28,20 @@
     "report": "tsx scripts/report.ts",
     "report:iris": "tsx scripts/report.ts --iris",
     "report:captor": "tsx scripts/report.ts",
-    "docs": "node -e \"require('fs').rmSync('docs',{recursive:true,force:true})\" && typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\""
+    "docs": "node -e \"require('fs').rmSync('docs',{recursive:true,force:true})\" && typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\"",
+    "plot": "tsx scripts/plot.ts",
+    "plot:iris": "tsx scripts/plot.ts --iris",
+    "plot:captor": "tsx scripts/plot.ts"
   },
-  "keywords": ["finance", "fintech", "timeseries", "investment", "risk", "volatility", "portfolio"],
+  "keywords": [
+    "finance",
+    "fintech",
+    "timeseries",
+    "investment",
+    "risk",
+    "volatility",
+    "portfolio"
+  ],
   "author": "",
   "license": "BSD-3-Clause",
   "repository": "github:CaptorAB/openseries-ts",
@@ -38,7 +51,6 @@
     "@types/node": "^20.10.0",
     "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.39.3",
-    "open": "^11.0.0",
     "tsup": "^8.0.0",
     "tsx": "^4.21.0",
     "typedoc": "^0.28.3",
@@ -50,7 +62,8 @@
     "node": ">=22"
   },
   "dependencies": {
-    "date-holidays": "^3.26.8"
+    "date-holidays": "^3.26.8",
+    "open": "^11.0.0"
   },
   "overrides": {
     "glob": "^13.0.0"

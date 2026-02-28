@@ -27,6 +27,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 - **Date utilities**: Business day calendars (via date-holidays), date offsets, period-end alignment
 - **Captor API**: Fetch timeseries from Captor Open API (`fetchCaptorSeries`, `fetchCaptorSeriesBatch`)
 - **Report**: `reportHtml(frame, options)` — programmatic HTML report; CLI via `npm run report`
+- **Plot**: `plotSeriesHtml()`, `plotSeries()` — full-page series line chart (like Python `plot_series`)
 
 ## API Overview
 
@@ -59,6 +60,11 @@ console.log(series.maxDrawdown()); // Max drawdown
 ### Report
 
 - `reportHtml(frame, options?)` — generate HTML report (cumulative performance, annual returns, stats) from an OpenFrame. Options: `title`, `logoUrl`, `addLogo`. Countries for business-day metrics come from `frame.countries`.
+
+### Plot
+
+- `plotSeriesHtml(seriesOrFrame, options?)` — generate full-page HTML with a line chart of cumulative returns (100 base). Works with `OpenTimeSeries` or `OpenFrame` (use `mergeSeries("inner")` first). Options: `title`, `logoUrl`, `addLogo`.
+- `plotSeries(seriesOrFrame, options?)` — async: writes HTML to file and optionally opens in browser. Options: `title`, `logoUrl`, `addLogo`, `filename` (default: `~/Documents/plot.html`), `autoOpen` (default: true).
 
 ## Documentation
 
@@ -93,6 +99,9 @@ npm run docs           # Generate API docs to docs/
 npm run report         # Captor API report (--ids id1 id2 ... [--title, --countries, --filename, --no-open, --no-logo])
 npm run report:iris    # Iris Bond + Benchmark preset
 npm run report:captor  # Same as report (default Captor IDs)
+npm run plot:iris      # Full-page plot (Captor Iris Bond + Benchmark)
+npm run plot           # Plot with default Captor IDs
+npm run plot:captor    # Same as plot
 ```
 
 ## License
