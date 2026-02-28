@@ -51,7 +51,9 @@ console.log(series.maxDrawdown()); // Max drawdown
 
 ## Documentation
 
-API docs are generated with TypeDoc:
+API reference: https://captorab.github.io/openseries-ts/
+
+To regenerate docs locally:
 
 ```bash
 npm run docs
