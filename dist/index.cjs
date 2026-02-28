@@ -48,6 +48,7 @@ __export(index_exports, {
   filterBusinessDays: () => filterBusinessDays,
   filterToBusinessDays: () => filterToBusinessDays,
   generateCalendarDateRange: () => generateCalendarDateRange,
+  getPreviousBusinessDayBeforeToday: () => getPreviousBusinessDayBeforeToday,
   isBusinessDay: () => isBusinessDay,
   lastBusinessDayOfMonth: () => lastBusinessDayOfMonth,
   lastBusinessDayOfYear: () => lastBusinessDayOfYear,
@@ -56,11 +57,14 @@ __export(index_exports, {
   pctChange: () => pctChange,
   plotSeries: () => plotSeries,
   plotSeriesHtml: () => plotSeriesHtml,
+  preparePlotData: () => preparePlotData,
   prevBusinessDay: () => prevBusinessDay,
   quantile: () => quantile,
   randomGenerator: () => randomGenerator,
   reportHtml: () => reportHtml,
   resampleToPeriodEnd: () => resampleToPeriodEnd,
+  sharpeplot: () => sharpeplot,
+  sharpeplotHtml: () => sharpeplotHtml,
   simulatePortfolios: () => simulatePortfolios,
   std: () => std,
   timeseriesChain: () => timeseriesChain
@@ -207,6 +211,12 @@ function createHolidayCheckers(countries) {
 }
 function isHoliday(dateStr, checkers) {
   return checkers.some((check) => check(dateStr));
+}
+function getPreviousBusinessDayBeforeToday(countries) {
+  const today = /* @__PURE__ */ new Date();
+  today.setUTCDate(today.getUTCDate() - 1);
+  const yesterdayStr = dateToStr(today);
+  return prevBusinessDay(yesterdayStr, countries);
 }
 function filterBusinessDays(dates, countries) {
   const checkers = createHolidayCheckers(countries);
@@ -949,6 +959,10 @@ var OpenFrame = class {
     this.tsdf = { dates, columns: valuesBySeries };
     return this;
   }
+  /** Returns return columns (first element 0). Throws if mixed PRICE/RTRN. */
+  returnColumns() {
+    return this.ensureReturns();
+  }
   ensureReturns() {
     const vtypes = this.constituents.map((c) => c.valuetype === "Return(Total)" /* RTRN */);
     if (vtypes.every(Boolean)) {
@@ -1559,22 +1573,21 @@ function efficientFrontier(frame, numPorts = 5e3, seed = 71, frontierPoints = 50
       cov[i][j] = c / (n - 1) * tf;
     }
   }
-  const minVolIdx = simulated.reduce(
-    (best, s, i) => s.stdev < simulated[best].stdev ? i : best,
-    0
-  );
-  const frontierMinRet = simulated[minVolIdx].ret;
+  const invCov = invertMatrix(cov);
+  const ones = new Array(frame.itemCount).fill(1);
+  const invCovOnes = matVec(invCov, ones);
+  const sumInv = invCovOnes.reduce((a, b) => a + b, 0);
+  const wGmv = sumInv !== 0 ? invCovOnes.map((x) => x / sumInv) : null;
+  const gmvRet = wGmv && Math.abs(sumInv) > 1e-12 ? vecDot(wGmv, meanRets) : Math.min(...meanRets);
   const frontierMaxRet = Math.max(...meanRets);
   const frontier = [];
   const targetRets = Array.from(
     { length: frontierPoints },
-    (_, i) => frontierMinRet + i / (frontierPoints - 1) * (frontierMaxRet - frontierMinRet)
+    (_, i) => gmvRet + i / Math.max(1, frontierPoints - 1) * (frontierMaxRet - gmvRet)
   );
-  const invCov = invertMatrix(cov);
-  const ones = new Array(frame.itemCount).fill(1);
   const A = vecDot(ones, matVec(invCov, meanRets));
   const B = vecDot(meanRets, matVec(invCov, meanRets));
-  const C = vecDot(ones, matVec(invCov, ones));
+  const C = vecDot(ones, invCovOnes);
   const det = B * C - A * A;
   for (const targetRet of targetRets) {
     const w = solveEfficientWeights(
@@ -1606,7 +1619,17 @@ function efficientFrontier(frame, numPorts = 5e3, seed = 71, frontierPoints = 50
       });
     }
   }
-  frontier.sort((a, b) => a.ret - b.ret);
+  frontier.sort((a, b) => a.stdev - b.stdev);
+  const efficient = [];
+  let maxRetSeen = -Infinity;
+  for (const p of frontier) {
+    if (p.ret >= maxRetSeen - 1e-10) {
+      efficient.push(p);
+      maxRetSeen = Math.max(maxRetSeen, p.ret);
+    }
+  }
+  frontier.length = 0;
+  frontier.push(...efficient);
   const maxSharpeIdx = frontier.reduce(
     (best, p, i) => p.sharpe > frontier[best].sharpe ? i : best,
     0
@@ -1655,59 +1678,56 @@ function invertMatrix(m) {
   }
   return inv;
 }
-function solveEfficientWeights(meanRets, cov, invCov, targetRet, A, B, C, det, n) {
+function solveEfficientWeights(meanRets, _cov, invCov, targetRet, A, B, C, det, n) {
   if (Math.abs(det) < 1e-14) return null;
   const lambda1 = (C * targetRet - A) / det;
   const lambda2 = (B - A * targetRet) / det;
   const ones = new Array(n).fill(1);
   const linearCombo = meanRets.map((mu, i) => lambda1 * mu + lambda2 * ones[i]);
   const w = matVec(invCov, linearCombo);
-  const tol = 1e-10;
-  const allNonNeg = w.every((wi) => wi >= -tol);
-  if (allNonNeg) {
-    const sum = w.reduce((a, b) => a + b, 0);
-    if (Math.abs(sum) < 1e-12) return null;
-    return w.map((wi) => Math.max(0, wi) / sum);
-  }
-  return minimizeVolForReturnProjected(meanRets, cov, targetRet, n);
+  const sum = w.reduce((a, b) => a + b, 0);
+  if (Math.abs(sum) < 1e-12) return null;
+  return w.map((wi) => wi / sum);
 }
-function minimizeVolForReturnProjected(meanRets, cov, targetRet, n) {
-  const rMax = Math.max(...meanRets);
-  const rMin = Math.min(...meanRets);
-  const target = Math.max(rMin, Math.min(rMax, targetRet));
-  if (target >= rMax - 1e-10) {
-    const imax = meanRets.indexOf(rMax);
-    const w2 = new Array(n).fill(0);
-    w2[imax] = 1;
-    return w2;
+function preparePlotData(assets, currentPortfolio, optimum) {
+  const tf = assets.periodInAYear;
+  const rets = assets.returnColumns().map((col) => col.slice(1));
+  const points = [];
+  for (let i = 0; i < assets.itemCount; i++) {
+    const r = rets[i].filter((x) => !Number.isNaN(x));
+    if (r.length < 2) continue;
+    const m = mean(r) * tf;
+    const v = std(r, 1) * Math.sqrt(tf);
+    points.push({ stdev: v, ret: m, label: assets.columnLabels[i] ?? `Asset ${i}` });
   }
-  if (target <= rMin + 1e-10) {
-    const imin = meanRets.indexOf(rMin);
-    const w2 = new Array(n).fill(0);
-    w2[imin] = 1;
-    return w2;
-  }
-  let w = new Array(n).fill(1 / n);
-  const maxIter = 2e3;
-  const tol = 1e-6;
-  let step = 0.4;
-  for (let iter = 0; iter < maxIter; iter++) {
-    const grad = matVec(cov, w);
-    let ret = vecDot(w, meanRets);
-    const retErr = ret - target;
-    const wNew = w.map((wi, i) => {
-      let d = wi - step * grad[i];
-      d += step * 2 * retErr * meanRets[i];
-      return Math.max(0, d);
+  const currRets = pctChange(ffill(currentPortfolio.values));
+  currRets[0] = 0;
+  const validCurr = currRets.slice(1).filter((x) => !Number.isNaN(x) && Number.isFinite(x));
+  if (validCurr.length >= 2) {
+    const m = mean(validCurr) * tf;
+    const v = std(validCurr, 1) * Math.sqrt(tf);
+    const eqWeights = assets.columnLabels.map((name) => ({
+      asset: name,
+      weight: 1 / assets.itemCount
+    }));
+    points.push({
+      stdev: v,
+      ret: m,
+      label: "Current Portfolio",
+      weights: eqWeights
     });
-    const sum = wNew.reduce((a, b) => a + b, 0);
-    if (sum < 1e-12) return w;
-    w = wNew.map((x) => x / sum);
-    ret = vecDot(w, meanRets);
-    if (Math.abs(ret - target) < tol) return w;
-    if (iter > 200) step *= 0.995;
   }
-  return w;
+  const maxSharpeWeights = assets.columnLabels.map((name, i) => ({
+    asset: name,
+    weight: optimum.weights[i] ?? 0
+  }));
+  points.push({
+    stdev: optimum.stdev,
+    ret: optimum.ret,
+    label: "Max Sharpe Portfolio",
+    weights: maxSharpeWeights
+  });
+  return points;
 }
 
 // src/captor.ts
@@ -2249,6 +2269,250 @@ async function plotSeries(seriesOrFrame, options = {}) {
   }
   return plotPath;
 }
+
+// src/sharpeplot.ts
+var import_node_fs2 = require("fs");
+var import_node_os2 = require("os");
+var import_node_path2 = require("path");
+var import_open2 = __toESM(require("open"), 1);
+var DEFAULT_LOGO_URL3 = "https://sales.captor.se/captor_logo_sv_1600_icketransparent.png";
+function defaultOutputDir2() {
+  const documents = (0, import_node_path2.join)((0, import_node_os2.homedir)(), "Documents");
+  return (0, import_node_fs2.existsSync)(documents) ? documents : (0, import_node_os2.homedir)();
+}
+function sharpeToColor(sharpe, minS, maxS) {
+  if (!Number.isFinite(sharpe) || maxS <= minS) return "#8D929D";
+  const t = (sharpe - minS) / (maxS - minS);
+  const r = Math.round(101 + 154 * (1 - t));
+  const g = Math.round(26 + 129 * (1 - t));
+  const b = Math.round(81 + 174 * t);
+  return `rgb(${r},${g},${b})`;
+}
+function sharpeplotHtml(simulated, frontier, pointFrame, options = {}) {
+  const title = options.title ?? "";
+  const logoUrl = options.addLogo !== false ? options.logoUrl ?? DEFAULT_LOGO_URL3 : "";
+  const sharpes = simulated.map((s) => s.sharpe).filter(Number.isFinite);
+  const minS = sharpes.length > 0 ? Math.min(...sharpes) : 0;
+  const maxS = sharpes.length > 0 ? Math.max(...sharpes) : 1;
+  const simData = simulated.map((s) => ({
+    x: s.stdev * 100,
+    y: s.ret * 100,
+    c: sharpeToColor(s.sharpe, minS, maxS)
+  }));
+  const assetLabels = options.assetLabels ?? [];
+  const frontierData = frontier.map((p) => ({
+    x: p.stdev * 100,
+    y: p.ret * 100,
+    weights: p.weights
+  }));
+  const pointColors = [
+    "#2E7D32",
+    "#8D929D",
+    "#253551",
+    "#D0C0B1",
+    "#611A51",
+    "#402D16"
+  ];
+  const pointData = pointFrame.map((p, i) => ({
+    x: p.stdev * 100,
+    y: p.ret * 100,
+    label: p.label,
+    weights: p.weights,
+    color: pointColors[i % pointColors.length]
+  }));
+  const logoEl = logoUrl ? `<div class="plot-header-logo"><img src="${logoUrl}" alt="Logo" /></div>` : "<div></div>";
+  const titleEl = title !== "" ? `<h1 class="plot-title">${title}</h1>` : "<div></div>";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Efficient Frontier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #fff;
+      color: #253551;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .plot-header {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      min-height: 80px;
+    }
+    .plot-header-logo { display: flex; align-items: center; }
+    .plot-header-logo img { height: 60px; width: auto; max-width: 270px; object-fit: contain; }
+    .plot-title { grid-column: 2; text-align: center; font-size: 3rem; font-weight: 600; margin: 0; }
+    .plot-main { flex: 1; min-height: 0; padding: 24px; display: flex; flex-direction: column; }
+    .plot-wrapper { flex: 1; min-height: 200px; position: relative; }
+    .plot-wrapper canvas { max-width: 100%; }
+    .plot-legend { flex-shrink: 0; display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; padding-top: 16px; font-size: 0.8125rem; }
+    .colorbar { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+    .colorbar-label { font-size: 0.75rem; color: #666; }
+  </style>
+</head>
+<body>
+  <header class="plot-header">
+    ${logoEl}
+    ${titleEl}
+  </header>
+  <div class="plot-main">
+    <div class="plot-wrapper">
+      <canvas id="sharpeChart"></canvas>
+    </div>
+    <div class="colorbar">
+      <span class="colorbar-label">Ratio ret / vol &larr;</span>
+      <div style="width:120px;height:12px;background:linear-gradient(to right,rgb(255,53,81),rgb(101,114,91));border-radius:2px;"></div>
+      <span class="colorbar-label">&rarr;</span>
+    </div>
+  </div>
+
+  <script>
+    const simData = ${JSON.stringify(simData)};
+    const frontierData = ${JSON.stringify(frontierData)};
+    const pointData = ${JSON.stringify(pointData)};
+    const assetLabels = ${JSON.stringify(assetLabels)};
+
+    Chart.defaults.font.family = "'Poppins', sans-serif";
+    const ctx = document.getElementById('sharpeChart').getContext('2d');
+
+    const simDs = {
+      type: 'scatter',
+      label: 'Simulated',
+      data: simData.map(p => ({ x: p.x, y: p.y })),
+      backgroundColor: simData.map(p => p.c),
+      borderColor: simData.map(p => p.c),
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      order: 2,
+    };
+
+    const frontierDs = {
+      type: 'line',
+      label: 'Efficient Frontier',
+      data: frontierData,
+      borderColor: '#8B7355',
+      borderWidth: 2,
+      fill: false,
+      pointRadius: 0,
+      tension: 0.1,
+      order: 1,
+    };
+
+    const pointDs = pointData.map((p, i) => ({
+      type: 'scatter',
+      label: p.label,
+      data: [{ x: p.x, y: p.y }],
+      backgroundColor: p.color,
+      borderColor: '#333',
+      borderWidth: 1,
+      pointRadius: 10,
+      pointHoverRadius: 12,
+      order: 0,
+    }));
+
+    new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: [simDs, frontierDs, ...pointDs],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            title: { display: true, text: 'annual volatility' },
+            min: 0,
+            grid: { color: '#EEEEEE' },
+            ticks: { callback: v => v + '%' },
+          },
+          y: {
+            title: { display: true, text: 'annual return' },
+            grid: { color: '#EEEEEE' },
+            ticks: { callback: v => v + '%' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            filter: (ctx) => ctx.dataset.label !== 'Simulated',
+            callbacks: {
+              label: (ctx) => {
+                const ds = ctx.dataset;
+                const lines = [];
+                if (ds.label === 'Efficient Frontier') {
+                  lines.push('Efficient Frontier', ctx.raw.x.toFixed(2) + '% vol, ' + ctx.raw.y.toFixed(2) + '% ret');
+                  const fp = frontierData[ctx.dataIndex];
+                  if (fp?.weights?.length) {
+                    const labels = assetLabels.length ? assetLabels : fp.weights.map((_, i) => 'Asset ' + i);
+                    labels.forEach((name, i) => {
+                      lines.push(name + ': ' + ((fp.weights[i] ?? 0) * 100).toFixed(1) + '%');
+                    });
+                  }
+                } else {
+                  const pd = pointData.find(p => p.label === ds.label);
+                  if (pd) lines.push(pd.label);
+                  lines.push(ctx.raw.x.toFixed(2) + '% vol, ' + ctx.raw.y.toFixed(2) + '% ret');
+                  if (pd?.weights?.length) {
+                    pd.weights.forEach(({ asset, weight }) => {
+                      lines.push(asset + ': ' + (weight * 100).toFixed(1) + '%');
+                    });
+                  }
+                }
+                return lines;
+              },
+            },
+          },
+        },
+      },
+      plugins: [{
+        id: 'pointLabels',
+        afterDatasetsDraw(chart) {
+          const ctx = chart.ctx;
+          const dsOffset = 2;
+          pointData.forEach((p, i) => {
+            const idx = dsOffset + i;
+            if (idx >= chart.data.datasets.length) return;
+            const meta = chart.getDatasetMeta(idx);
+            if (!meta.data || !meta.data[0]) return;
+            const { x, y } = meta.data[0];
+            ctx.save();
+            ctx.font = '12px Poppins';
+            ctx.fillStyle = '#253551';
+            ctx.textAlign = 'center';
+            ctx.fillText(p.label, x, y - 14);
+            ctx.restore();
+          });
+        },
+      }],
+    });
+  </script>
+</body>
+</html>`;
+}
+async function sharpeplot(simulated, frontier, pointFrame, options = {}) {
+  const { filename, autoOpen = true } = options;
+  const html = sharpeplotHtml(simulated, frontier, pointFrame, options);
+  const defaultDir = defaultOutputDir2();
+  const plotPath = filename !== void 0 ? filename.includes("/") || filename.includes("\\") ? filename : (0, import_node_path2.join)(defaultDir, filename) : (0, import_node_path2.join)(defaultDir, "efficient-frontier.html");
+  (0, import_node_fs2.writeFileSync)(plotPath, html, "utf-8");
+  if (autoOpen) {
+    await (0, import_open2.default)(plotPath, { wait: false });
+  }
+  return plotPath;
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   DateAlignmentError,
@@ -2269,6 +2533,7 @@ async function plotSeries(seriesOrFrame, options = {}) {
   filterBusinessDays,
   filterToBusinessDays,
   generateCalendarDateRange,
+  getPreviousBusinessDayBeforeToday,
   isBusinessDay,
   lastBusinessDayOfMonth,
   lastBusinessDayOfYear,
@@ -2277,11 +2542,14 @@ async function plotSeries(seriesOrFrame, options = {}) {
   pctChange,
   plotSeries,
   plotSeriesHtml,
+  preparePlotData,
   prevBusinessDay,
   quantile,
   randomGenerator,
   reportHtml,
   resampleToPeriodEnd,
+  sharpeplot,
+  sharpeplotHtml,
   simulatePortfolios,
   std,
   timeseriesChain

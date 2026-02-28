@@ -1,4 +1,4 @@
-import { mean } from "./utils";
+import { mean, std, pctChange, ffill } from "./utils";
 import { OpenFrame } from "./frame";
 import { ValueType } from "./types";
 import { randomGenerator } from "./simulation";
@@ -125,25 +125,28 @@ export function efficientFrontier(
     }
   }
 
-  const minVolIdx = simulated.reduce<number>((best, s, i) =>
-    s.stdev < simulated[best].stdev ? i : best,
-  0);
-  const frontierMinRet = simulated[minVolIdx].ret;
+  const invCov = invertMatrix(cov);
+  const ones = new Array(frame.itemCount).fill(1);
+  const invCovOnes = matVec(invCov, ones);
+  const sumInv = invCovOnes.reduce((a, b) => a + b, 0);
+  const wGmv = sumInv !== 0 ? invCovOnes.map((x) => x / sumInv) : null;
+  const gmvRet =
+    wGmv && Math.abs(sumInv) > 1e-12
+      ? vecDot(wGmv, meanRets)
+      : Math.min(...meanRets);
   const frontierMaxRet = Math.max(...meanRets);
 
   const frontier: EfficientFrontierPoint[] = [];
   const targetRets = Array.from(
     { length: frontierPoints },
     (_, i) =>
-      frontierMinRet +
-      (i / (frontierPoints - 1)) * (frontierMaxRet - frontierMinRet),
+      gmvRet +
+      (i / Math.max(1, frontierPoints - 1)) * (frontierMaxRet - gmvRet),
   );
 
-  const invCov = invertMatrix(cov);
-  const ones = new Array(frame.itemCount).fill(1);
   const A = vecDot(ones, matVec(invCov, meanRets));
   const B = vecDot(meanRets, matVec(invCov, meanRets));
-  const C = vecDot(ones, matVec(invCov, ones));
+  const C = vecDot(ones, invCovOnes);
   const det = B * C - A * A;
 
   for (const targetRet of targetRets) {
@@ -177,7 +180,18 @@ export function efficientFrontier(
     }
   }
 
-  frontier.sort((a, b) => a.ret - b.ret);
+  frontier.sort((a, b) => a.stdev - b.stdev);
+
+  const efficient: EfficientFrontierPoint[] = [];
+  let maxRetSeen = -Infinity;
+  for (const p of frontier) {
+    if (p.ret >= maxRetSeen - 1e-10) {
+      efficient.push(p);
+      maxRetSeen = Math.max(maxRetSeen, p.ret);
+    }
+  }
+  frontier.length = 0;
+  frontier.push(...efficient);
 
   const maxSharpeIdx = frontier.reduce<number>((best, p, i) =>
     p.sharpe > frontier[best].sharpe ? i : best,
@@ -230,15 +244,14 @@ function invertMatrix(m: number[][]): number[][] {
 }
 
 /**
- * Analytic solution for min-variance portfolio with target return.
+ * Analytic solution for min-variance portfolio with target return (unconstrained).
  * Minimizes (1/2) w'Σw s.t. w'μ = targetRet, w'1 = 1.
  * Solution: w = Σ^(-1)(λ1*μ + λ2*1) where λ1,λ2 from 2x2 linear system.
- * When solution has negative weights (long-only infeasible), falls back to
- * projected gradient to find feasible optimum.
+ * Weights may be negative (short positions); no long-only constraint.
  */
 function solveEfficientWeights(
   meanRets: number[],
-  cov: number[][],
+  _cov: number[][],
   invCov: number[][],
   targetRet: number,
   A: number,
@@ -253,65 +266,69 @@ function solveEfficientWeights(
   const ones = new Array(n).fill(1);
   const linearCombo = meanRets.map((mu, i) => lambda1 * mu + lambda2 * ones[i]!);
   const w = matVec(invCov, linearCombo);
+  const sum = w.reduce((a, b) => a + b, 0);
+  if (Math.abs(sum) < 1e-12) return null;
+  return w.map((wi) => wi / sum);
+}
 
-  const tol = 1e-10;
-  const allNonNeg = w.every((wi) => wi >= -tol);
-  if (allNonNeg) {
-    const sum = w.reduce((a, b) => a + b, 0);
-    if (Math.abs(sum) < 1e-12) return null;
-    return w.map((wi) => Math.max(0, wi) / sum);
-  }
-
-  return minimizeVolForReturnProjected(meanRets, cov, targetRet, n);
+/** Point on the efficient-frontier plot (stdev and ret in decimal form). */
+export interface SharpePlotPoint {
+  stdev: number;
+  ret: number;
+  label: string;
+  /** Optional asset weights for tooltip (e.g. Current Portfolio, Max Sharpe). */
+  weights?: { asset: string; weight: number }[];
 }
 
 /**
- * Projected gradient descent for min-variance subject to w'μ = targetRet,
- * w'1 = 1, w >= 0. Clips target to achievable range [rGmv, max(μ)] when needed.
+ * Prepares labeled points for the efficient-frontier chart: individual assets,
+ * current (e.g. eq-weight) portfolio, and the max-Sharpe optimum.
  */
-function minimizeVolForReturnProjected(
-  meanRets: number[],
-  cov: number[][],
-  targetRet: number,
-  n: number,
-): number[] {
-  const rMax = Math.max(...meanRets);
-  const rMin = Math.min(...meanRets);
-  const target = Math.max(rMin, Math.min(rMax, targetRet));
+export function preparePlotData(
+  assets: OpenFrame,
+  currentPortfolio: { dates: string[]; values: number[] },
+  optimum: EfficientFrontierPoint,
+): SharpePlotPoint[] {
+  const tf = assets.periodInAYear;
+  const rets = assets.returnColumns().map((col) => col.slice(1));
+  const points: SharpePlotPoint[] = [];
 
-  if (target >= rMax - 1e-10) {
-    const imax = meanRets.indexOf(rMax);
-    const w = new Array(n).fill(0);
-    w[imax] = 1;
-    return w;
-  }
-  if (target <= rMin + 1e-10) {
-    const imin = meanRets.indexOf(rMin);
-    const w = new Array(n).fill(0);
-    w[imin] = 1;
-    return w;
+  for (let i = 0; i < assets.itemCount; i++) {
+    const r = rets[i].filter((x) => !Number.isNaN(x));
+    if (r.length < 2) continue;
+    const m = mean(r) * tf;
+    const v = std(r, 1) * Math.sqrt(tf);
+    points.push({ stdev: v, ret: m, label: assets.columnLabels[i] ?? `Asset ${i}` });
   }
 
-  let w = new Array(n).fill(1 / n);
-  const maxIter = 2000;
-  const tol = 1e-6;
-  let step = 0.4;
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    const grad = matVec(cov, w);
-    let ret = vecDot(w, meanRets);
-    const retErr = ret - target;
-    const wNew = w.map((wi, i) => {
-      let d = wi - step * grad[i]!;
-      d += step * 2 * retErr * meanRets[i]!;
-      return Math.max(0, d);
+  const currRets = pctChange(ffill(currentPortfolio.values));
+  currRets[0] = 0;
+  const validCurr = currRets.slice(1).filter((x) => !Number.isNaN(x) && Number.isFinite(x));
+  if (validCurr.length >= 2) {
+    const m = mean(validCurr) * tf;
+    const v = std(validCurr, 1) * Math.sqrt(tf);
+    const eqWeights = assets.columnLabels.map((name) => ({
+      asset: name,
+      weight: 1 / assets.itemCount,
+    }));
+    points.push({
+      stdev: v,
+      ret: m,
+      label: "Current Portfolio",
+      weights: eqWeights,
     });
-    const sum = wNew.reduce((a, b) => a + b, 0);
-    if (sum < 1e-12) return w;
-    w = wNew.map((x) => x / sum);
-    ret = vecDot(w, meanRets);
-    if (Math.abs(ret - target) < tol) return w;
-    if (iter > 200) step *= 0.995;
   }
-  return w;
+
+  const maxSharpeWeights = assets.columnLabels.map((name, i) => ({
+    asset: name,
+    weight: optimum.weights[i] ?? 0,
+  }));
+  points.push({
+    stdev: optimum.stdev,
+    ret: optimum.ret,
+    label: "Max Sharpe Portfolio",
+    weights: maxSharpeWeights,
+  });
+
+  return points;
 }

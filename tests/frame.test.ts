@@ -110,6 +110,15 @@ describe("OpenFrame", () => {
     expect(port.values.length).toBe(frame.length);
   });
 
+  it("makePortfolio min_vol_overweight overweights lowest-vol asset", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 100, 100]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 105, 102]);
+    const s3 = OpenTimeSeries.fromArrays("C", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 98, 101]);
+    const frame = new OpenFrame([s1, s2, s3], null);
+    const port = frame.makePortfolio("P", "min_vol_overweight");
+    expect(port.values.length).toBe(3);
+  });
+
   it("makePortfolio max_div produces valid output (seed 71)", () => {
     const frame = simulatedFrame();
     const port = frame.makePortfolio("P", "max_div");
@@ -161,6 +170,29 @@ describe("OpenFrame", () => {
     expect(frame.tsdf.dates).toEqual(["2020-01-02", "2020-01-03"]);
   });
 
+  it("aligns series with getVal binary search for dates between observations", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-05"], [100, 104]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-04", "2020-01-05"], [200, 201, 202, 203, 204]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    expect(frame.tsdf.dates).toContain("2020-01-02");
+    expect(frame.tsdf.dates).toContain("2020-01-03");
+    expect(frame.tsdf.columns[0][frame.tsdf.dates.indexOf("2020-01-02")]).toBe(100);
+    expect(frame.tsdf.columns[0][frame.tsdf.dates.indexOf("2020-01-05")]).toBe(104);
+  });
+
+  it("uses countries from single string when options provide one", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
+    const frame = new OpenFrame([s1], null, { countries: "NO" });
+    expect(frame.countries).toEqual(["NO"]);
+  });
+
+  it("uses countries from first constituent when no options", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100], { countries: ["NO"] });
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01"], [200]);
+    const frame = new OpenFrame([s1, s2]);
+    expect(frame.countries).toEqual(["NO"]);
+  });
+
   it("correlMatrix returns NaN when fewer than 2 overlapping observations", () => {
     const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
     const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01"], [200]);
@@ -193,6 +225,30 @@ describe("OpenFrame", () => {
     const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03"], [50, 50, 50]);
     const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
     expect(frame.beta(0, 1)).toBeNaN();
+  });
+
+  it("correlMatrix returns 1 on diagonal when denom is zero (identical pairs)", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [100, 100]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [100, 100]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const corr = frame.correlMatrix();
+    expect(corr[0][0]).toBe(1);
+    expect(corr[1][1]).toBe(1);
+    expect(corr[0][1]).toBeNaN();
+  });
+
+  it("makePortfolio inv_vol with one zero-vol series", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 100, 100]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+    const frame = new OpenFrame([s1, s2], null);
+    const port = frame.makePortfolio("P", "inv_vol");
+    expect(port.values.length).toBe(3);
+  });
+
+  it("jensenAlpha with riskfreeRate", () => {
+    const frame = simulatedFrame();
+    const alpha = frame.jensenAlpha(0, 1, 0.01);
+    expect(Number.isFinite(alpha)).toBe(true);
   });
 
   it("addTimeseries merges and updates labels", () => {
@@ -286,6 +342,43 @@ describe("OpenFrame", () => {
       frame.truncFrame({ startCut: "2030-01-01", endCut: "2030-06-01" });
       expect(frame.length).toBe(lenBefore);
     });
+
+    it("truncFrame with where before infers fromDate from latest constituent start", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+      const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-02", "2020-01-03", "2020-01-06"], [200, 201, 202]);
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+      frame.truncFrame({ where: "before", endCut: "2020-01-06" });
+      expect(frame.firstIdx).toBe("2020-01-02");
+    });
+
+    it("truncFrame with where after infers toDate from earliest constituent end", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+      const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [200, 201]);
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+      frame.truncFrame({ where: "after", startCut: "2020-01-01" });
+      expect(frame.lastIdx).toBe("2020-01-02");
+    });
+
+    it("truncFrame returns early when fromDate or toDate cannot be determined", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
+      const frame = new OpenFrame([s1], null);
+      frame.truncFrame({ where: "before" });
+      expect(frame.length).toBe(1);
+    });
+
+    it("truncFrame returns early when fromIdx < 0 (startCut after all dates)", () => {
+      const frame = simulatedFrame();
+      const lenBefore = frame.length;
+      frame.truncFrame({ startCut: "2030-01-01", endCut: "2030-12-31" });
+      expect(frame.length).toBe(lenBefore);
+    });
+
+    it("truncFrame returns early when toIdx < fromIdx (invalid range)", () => {
+      const frame = simulatedFrame();
+      const lenBefore = frame.length;
+      frame.truncFrame({ startCut: "2020-06-01", endCut: "2020-05-01" });
+      expect(frame.length).toBe(lenBefore);
+    });
   });
 
   describe("captureRatio", () => {
@@ -315,5 +408,53 @@ describe("OpenFrame", () => {
       const ratios = frame.captureRatio("both", -1, { freq: "QE" });
       expect(ratios.length).toBe(3);
     });
+
+    it("captureRatio up returns NaN when benchmark has no up months", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-02-01", "2020-03-01"], [100, 95, 90]);
+      const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-02-01", "2020-03-01"], [100, 98, 96]);
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+      const up = frame.captureRatio("up", -1);
+      expect(up.length).toBe(2);
+    });
+
+    it("captureRatio down returns NaN when benchmark has no down months", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-02-01", "2020-03-01"], [100, 105, 110]);
+      const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-02-01", "2020-03-01"], [100, 102, 104]);
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+      const down = frame.captureRatio("down", -1);
+      expect(down.length).toBe(2);
+    });
+
+    it("captureRatio both with valid up and down periods", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-02-01", "2020-03-01", "2020-04-01", "2020-05-01", "2020-06-01"], [100, 105, 103, 101, 106, 108]);
+      const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-02-01", "2020-03-01", "2020-04-01", "2020-05-01", "2020-06-01"], [100, 102, 98, 97, 103, 105]);
+      const frame = new OpenFrame([s1, s2], [0.5, 0.5], { countries: "US" });
+      const ratios = frame.captureRatio("both", -1);
+      expect(ratios.length).toBe(2);
+      expect(ratios[1]).toBe(0);
+      expect(Number.isFinite(ratios[0]) || Number.isNaN(ratios[0])).toBe(true);
+    });
+
+    it("captureRatio returns NaN for asset with mismatched length", () => {
+      const frame = simulatedFrame({ numAssets: 2, days: 20 });
+      const ratios = frame.captureRatio("both", -1, { freq: "ME" });
+      expect(Array.isArray(ratios)).toBe(true);
+    });
+  });
+
+  it("filterToBusinessDays updates constituent tsdf when colIdx found", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-06"], [100, 101, 102, 103, 104], { countries: "US" });
+    const s2 = OpenTimeSeries.fromArrays("B", ["2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-06"], [200, 201, 202, 203, 204], { countries: "US" });
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5], { countries: "US" });
+    frame.filterToBusinessDays();
+    expect(s1.tsdf.length).toBeLessThanOrEqual(5);
+    expect(s2.tsdf.length).toBeLessThanOrEqual(5);
+  });
+
+  it("returnColumns returns same as ensureReturns", () => {
+    const frame = simulatedFrame({ numAssets: 2 });
+    const cols = frame.returnColumns();
+    expect(cols.length).toBe(2);
+    expect(cols[0][0]).toBe(0);
   });
 });

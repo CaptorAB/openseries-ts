@@ -2,12 +2,27 @@ import { describe, it, expect } from "vitest";
 import {
   filterBusinessDays,
   filterToBusinessDays,
+  getPreviousBusinessDayBeforeToday,
   isBusinessDay,
   lastBusinessDayOfMonth,
   lastBusinessDayOfYear,
   prevBusinessDay,
   resampleToPeriodEnd,
 } from "../src/bizcalendar";
+
+describe("getPreviousBusinessDayBeforeToday", () => {
+  it("returns a valid YYYY-MM-DD string", () => {
+    const result = getPreviousBusinessDayBeforeToday("SE");
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+  it("returns a business day (not weekend)", () => {
+    const result = getPreviousBusinessDayBeforeToday("US");
+    const d = new Date(result + "T12:00:00Z");
+    const day = d.getUTCDay();
+    expect(day).not.toBe(0);
+    expect(day).not.toBe(6);
+  });
+});
 
 describe("filterBusinessDays", () => {
   it("excludes weekends", () => {

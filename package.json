@@ -31,7 +31,8 @@
     "docs": "node -e \"require('fs').rmSync('docs',{recursive:true,force:true})\" && typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\"",
     "plot": "tsx scripts/plot.ts",
     "plot:iris": "tsx scripts/plot.ts --iris",
-    "plot:captor": "tsx scripts/plot.ts"
+    "plot:captor": "tsx scripts/plot.ts",
+    "efficient-frontier": "tsx scripts/efficient-frontier.ts"
   },
   "keywords": [
     "finance",

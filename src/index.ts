@@ -18,6 +18,7 @@ export {
 export {
   filterBusinessDays,
   filterToBusinessDays,
+  getPreviousBusinessDayBeforeToday,
   isBusinessDay,
   lastBusinessDayOfMonth,
   lastBusinessDayOfYear,
@@ -29,8 +30,10 @@ export {
 export {
   simulatePortfolios,
   efficientFrontier,
+  preparePlotData,
   type SimulatedPortfolio,
   type EfficientFrontierPoint,
+  type SharpePlotPoint,
 } from "./portfoliotools";
 export {
   fetchCaptorSeries,
@@ -55,3 +58,8 @@ export {
   plotSeries,
   type PlotSeriesOptions,
 } from "./plot";
+export {
+  sharpeplotHtml,
+  sharpeplot,
+  type SharpePlotOptions,
+} from "./sharpeplot";

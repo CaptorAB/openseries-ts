@@ -36,6 +36,19 @@ function isHoliday(dateStr: string, checkers: ((d: string) => boolean)[]): boole
 }
 
 /**
+ * Returns the most recent business day strictly before today.
+ * Uses the given country code(s) for holiday calendar (e.g. "SE" for XSTO/Stockholm).
+ */
+export function getPreviousBusinessDayBeforeToday(
+  countries: CountryCode | CountryCode[],
+): string {
+  const today = new Date();
+  today.setUTCDate(today.getUTCDate() - 1);
+  const yesterdayStr = dateToStr(today);
+  return prevBusinessDay(yesterdayStr, countries);
+}
+
+/**
  * Filters an array of date strings to keep only business days.
  * Business day = not weekend (Sat/Sun) and not a holiday in any of the specified countries.
  *

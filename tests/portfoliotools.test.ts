@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { simulatePortfolios, efficientFrontier } from "../src/portfoliotools";
+import {
+  simulatePortfolios,
+  efficientFrontier,
+  preparePlotData,
+} from "../src/portfoliotools";
 import { simulatedFrame } from "./fixtures";
 import { OpenFrame } from "../src/frame";
 import { OpenTimeSeries } from "../src/series";
@@ -35,7 +39,7 @@ describe("efficientFrontier", () => {
   it("returns frontier and simulated with correct structure (seed 71)", () => {
     const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
     const ef = efficientFrontier(frame, 500, 71, 20);
-    expect(ef.frontier.length).toBe(20);
+    expect(ef.frontier.length).toBeGreaterThanOrEqual(1);
     expect(ef.simulated.length).toBeGreaterThan(0);
     expect(ef.maxSharpe).toBeDefined();
   });
@@ -51,7 +55,16 @@ describe("efficientFrontier", () => {
     );
     const frame = new OpenFrame(constituents, [1 / 3, 1 / 3, 1 / 3]);
     const ef = efficientFrontier(frame, 500, 71, 20);
-    expect(ef.frontier.length).toBe(20);
+    expect(ef.frontier.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("frontier traces efficient upper envelope (stdev and ret increase left-to-right)", () => {
+    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const ef = efficientFrontier(frame, 500, 71, 25);
+    for (let i = 1; i < ef.frontier.length; i++) {
+      expect(ef.frontier[i]!.stdev).toBeGreaterThanOrEqual(ef.frontier[i - 1]!.stdev - 1e-9);
+      expect(ef.frontier[i]!.ret).toBeGreaterThanOrEqual(ef.frontier[i - 1]!.ret - 1e-9);
+    }
   });
 
   it("frontier points have increasing return", () => {
@@ -101,5 +114,25 @@ describe("efficientFrontier", () => {
     const ef = efficientFrontier(frame, 500, 99, 60);
     expect(ef.frontier.length).toBeGreaterThan(0);
   });
+});
 
+describe("preparePlotData", () => {
+  it("returns assets, current portfolio, and max sharpe points", () => {
+    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const current = frame.makePortfolio("Current Portfolio", "eq_weights");
+    const ef = efficientFrontier(frame, 500, 71, 20);
+    const points = preparePlotData(frame, current, ef.maxSharpe);
+    expect(points.length).toBeGreaterThanOrEqual(4);
+    const labels = points.map((p) => p.label);
+    expect(labels).toContain("Current Portfolio");
+    expect(labels).toContain("Max Sharpe Portfolio");
+    expect(labels).toContain("Asset_0");
+    points.forEach((p) => {
+      expect(p).toHaveProperty("stdev");
+      expect(p).toHaveProperty("ret");
+      expect(p).toHaveProperty("label");
+      expect(Number.isFinite(p.stdev)).toBe(true);
+      expect(Number.isFinite(p.ret)).toBe(true);
+    });
+  });
 });

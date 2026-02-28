@@ -140,6 +140,11 @@ export class OpenFrame {
     return this;
   }
 
+  /** Returns return columns (first element 0). Throws if mixed PRICE/RTRN. */
+  returnColumns(): number[][] {
+    return this.ensureReturns();
+  }
+
   private ensureReturns(): number[][] {
     const vtypes = this.constituents.map((c) => c.valuetype === ValueType.RTRN);
     if (vtypes.every(Boolean)) {

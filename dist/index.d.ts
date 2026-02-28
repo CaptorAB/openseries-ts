@@ -41,6 +41,11 @@ declare class ResampleDataLossError extends Error {
  */
 type CountryCode = string;
 /**
+ * Returns the most recent business day strictly before today.
+ * Uses the given country code(s) for holiday calendar (e.g. "SE" for XSTO/Stockholm).
+ */
+declare function getPreviousBusinessDayBeforeToday(countries: CountryCode | CountryCode[]): string;
+/**
  * Filters an array of date strings to keep only business days.
  * Business day = not weekend (Sat/Sun) and not a holiday in any of the specified countries.
  *
@@ -225,6 +230,8 @@ declare class OpenFrame {
     get lastIdx(): string;
     get periodInAYear(): number;
     mergeSeries(how?: "inner" | "outer"): this;
+    /** Returns return columns (first element 0). Throws if mixed PRICE/RTRN. */
+    returnColumns(): number[][];
     private ensureReturns;
     correlMatrix(): number[][];
     makePortfolio(name: string, weightStrat?: LiteralPortfolioWeightings): {
@@ -350,6 +357,25 @@ declare function efficientFrontier(frame: OpenFrame, numPorts?: number, seed?: n
     simulated: SimulatedPortfolio[];
     maxSharpe: EfficientFrontierPoint;
 };
+/** Point on the efficient-frontier plot (stdev and ret in decimal form). */
+interface SharpePlotPoint {
+    stdev: number;
+    ret: number;
+    label: string;
+    /** Optional asset weights for tooltip (e.g. Current Portfolio, Max Sharpe). */
+    weights?: {
+        asset: string;
+        weight: number;
+    }[];
+}
+/**
+ * Prepares labeled points for the efficient-frontier chart: individual assets,
+ * current (e.g. eq-weight) portfolio, and the max-Sharpe optimum.
+ */
+declare function preparePlotData(assets: OpenFrame, currentPortfolio: {
+    dates: string[];
+    values: number[];
+}, optimum: EfficientFrontierPoint): SharpePlotPoint[];
 
 /**
  * Captor Open API client for fetching timeseries data.
@@ -447,4 +473,29 @@ declare function plotSeriesHtml(seriesOrFrame: OpenTimeSeries | OpenFrame, optio
  */
 declare function plotSeries(seriesOrFrame: OpenTimeSeries | OpenFrame, options?: PlotSeriesOptions): Promise<string>;
 
-export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type PlotSeriesOptions, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, plotSeries, plotSeriesHtml, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, simulatePortfolios, std, timeseriesChain };
+/**
+ * Efficient frontier scatter plot with simulated portfolios, frontier line,
+ * and labeled points (assets, current portfolio, max Sharpe).
+ * Analogous to Python openseries sharpeplot.
+ */
+
+interface SharpePlotOptions {
+    title?: string;
+    logoUrl?: string;
+    addLogo?: boolean;
+    filename?: string;
+    autoOpen?: boolean;
+    /** Asset labels for frontier/portfolio weight tooltips (e.g. from frame.columnLabels). */
+    assetLabels?: string[];
+}
+/**
+ * Generates full-page HTML with efficient frontier scatter plot.
+ * Simulated portfolios colored by Sharpe ratio, frontier as line, labeled points.
+ */
+declare function sharpeplotHtml(simulated: SimulatedPortfolio[], frontier: EfficientFrontierPoint[], pointFrame: SharpePlotPoint[], options?: SharpePlotOptions): string;
+/**
+ * Writes efficient-frontier HTML to file and optionally opens in browser.
+ */
+declare function sharpeplot(simulated: SimulatedPortfolio[], frontier: EfficientFrontierPoint[], pointFrame: SharpePlotPoint[], options?: SharpePlotOptions): Promise<string>;
+
+export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type PlotSeriesOptions, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SharpePlotOptions, type SharpePlotPoint, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, getPreviousBusinessDayBeforeToday, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, plotSeries, plotSeriesHtml, preparePlotData, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, sharpeplot, sharpeplotHtml, simulatePortfolios, std, timeseriesChain };
