@@ -2,12 +2,6 @@
 
 Tools for analyzing financial timeseries of a single asset or a group of assets. Designed for daily or less frequent data. TypeScript port of the [Python openseries](https://pypi.org/project/openseries/) package.
 
-## Installation
-
-```bash
-npm install openseries-ts
-```
-
 ## Quick Start
 
 ```typescript
@@ -28,7 +22,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 
 - **OpenTimeSeries**: Single timeseries with risk metrics (CAGR, volatility, VaR, CVaR, Sortino ratio, max drawdown, etc.)
 - **OpenFrame**: Multi-series comparison, correlation, portfolio construction, rebalancing
-- **ReturnSimulation**: Monte Carlo (normal, lognormal, GBM, Merton jump-diffusion)
+- **ReturnSimulation**: Monte Carlo with reproducible seeds (normal, lognormal, GBM, Merton jump-diffusion)
 - **Portfolio tools**: Efficient frontier, simulated portfolios, weight strategies
 - **Date utilities**: Business day calendars, date offsets, period-end alignment
 
@@ -36,7 +30,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 
 ### OpenTimeSeries
 
-- `fromArrays()`, `fromObject()` - Create from dates/values
+- `fromArrays()`, `fromObject()`, `fromDateColumns()` — create from dates/values or simulation output
 - `valueToRet()`, `toCumret()` - Convert price ↔ returns
 - `geoRet()`, `arithmeticRet()`, `vol()`, `varDown()`, `cvarDown()`
 - `sortinoRatio()`, `retVolRatio()`, `maxDrawdown()`, `downsideDeviation()`
@@ -51,7 +45,22 @@ console.log(series.maxDrawdown()); // Max drawdown
 
 ### ReturnSimulation
 
-- `ReturnSimulation.fromNormal()`, `fromLognormal()`, `fromGbm()`, `fromMertonJumpGbm()`
+- `fromNormal()`, `fromLognormal()`, `fromGbm()`, `fromMertonJumpGbm()` — all accept optional `seed` for reproducibility
+- `toDateColumns(name, options?)` — returns dates and columns (as returns or cumulative prices)
+- `randomGenerator(seed?)` — seeded RNG for custom use
+
+## Scripts
+
+```bash
+npm run build          # Build dist/
+npm run test           # Run tests
+npm run test:coverage  # Tests with coverage
+npm run lint           # ESLint
+npm run lint:fix       # ESLint with auto-fix
+npm run typecheck      # TypeScript check
+npm run check          # lint + typecheck
+npm run report         # Captor API report (optional --title)
+```
 
 ## License
 

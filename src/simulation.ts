@@ -248,7 +248,7 @@ export class ReturnSimulation {
     });
   }
 
-  toDataFrame(
+  toDateColumns(
     name: string,
     options?: { start?: string; end?: string; asReturns?: boolean },
   ): { dates: string[]; columns: { name: string; values: number[] }[] } {

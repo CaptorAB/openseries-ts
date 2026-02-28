@@ -214,16 +214,16 @@ describe("ReturnSimulation", () => {
     });
   });
 
-  describe("toDataFrame", () => {
+  describe("toDateColumns", () => {
     it("returns returns by default (asReturns=true)", () => {
       const sim = ReturnSimulation.fromNormal(1, 0.05, 0.1, 10, 252, 1);
-      const df = sim.toDataFrame("Asset");
+      const df = sim.toDateColumns("Asset");
       expect(df.columns[0].values).toEqual(sim.dframe[0]);
     });
 
     it("returns cumulative prices when asReturns=false", () => {
       const sim = ReturnSimulation.fromNormal(1, 0.05, 0.1, 10, 252, 1);
-      const df = sim.toDataFrame("Asset", { asReturns: false });
+      const df = sim.toDateColumns("Asset", { asReturns: false });
       expect(df.columns[0].values).toEqual(sim.results[0]);
       expect(df.columns[0].values.length).toBe(10);
     });
@@ -240,14 +240,14 @@ describe("ReturnSimulation", () => {
         252,
         SEED,
       );
-      const df = sim.toDataFrame("Asset", { end: "2019-06-28" });
+      const df = sim.toDateColumns("Asset", { end: "2019-06-28" });
       expect(df.dates.length).toBe(TRADING_DAYS);
       expect(df.dates[df.dates.length - 1]).toBe("2019-06-28");
     });
 
     it("multiple sims produce multiple columns", () => {
       const sim = ReturnSimulation.fromNormal(5, 0.05, 0.1, 20, 252, 1);
-      const df = sim.toDataFrame("Asset");
+      const df = sim.toDateColumns("Asset");
       expect(df.columns.length).toBe(5);
       expect(df.columns.map((c) => c.name)).toEqual([
         "Asset_0",
@@ -260,7 +260,7 @@ describe("ReturnSimulation", () => {
   });
 
   describe("integration with OpenTimeSeries", () => {
-    it("fromDataFrame creates series from simulated returns and toCumret works", () => {
+    it("fromDateColumns creates series from simulated returns and toCumret works", () => {
       const sim = ReturnSimulation.fromMertonJumpGbm(
         1,
         100,
@@ -272,8 +272,8 @@ describe("ReturnSimulation", () => {
         252,
         SEED,
       );
-      const df = sim.toDataFrame("Asset", { end: "2020-06-30" });
-      const series = OpenTimeSeries.fromDataFrame(df, {
+      const df = sim.toDateColumns("Asset", { end: "2020-06-30" });
+      const series = OpenTimeSeries.fromDateColumns(df, {
         columnIndex: 0,
         valuetype: ValueType.RTRN,
       });
@@ -295,17 +295,17 @@ describe("ReturnSimulation", () => {
         252,
         SEED,
       );
-      const df = sim.toDataFrame("Asset", { end: "2020-01-31" });
+      const df = sim.toDateColumns("Asset", { end: "2020-01-31" });
       const series = [
-        OpenTimeSeries.fromDataFrame(df, {
+        OpenTimeSeries.fromDateColumns(df, {
           columnIndex: 0,
           valuetype: ValueType.RTRN,
         }),
-        OpenTimeSeries.fromDataFrame(df, {
+        OpenTimeSeries.fromDateColumns(df, {
           columnIndex: 1,
           valuetype: ValueType.RTRN,
         }),
-        OpenTimeSeries.fromDataFrame(df, {
+        OpenTimeSeries.fromDateColumns(df, {
           columnIndex: 2,
           valuetype: ValueType.RTRN,
         }),
