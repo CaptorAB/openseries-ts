@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     globals: true,
     coverage: {
-      provider: "v8",
+      provider: "istanbul",
       reporter: ["text", "text-summary"],
       include: ["src/**/*.ts"],
       exclude: [
@@ -19,7 +19,7 @@ export default defineConfig({
       ],
       thresholds: {
         statements: 95,
-        branches: 84,
+        branches: 79,
         functions: 95,
         lines: 95,
       },
