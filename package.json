@@ -32,7 +32,8 @@
     "plot": "tsx scripts/plot.ts",
     "plot:iris": "tsx scripts/plot.ts --iris",
     "plot:captor": "tsx scripts/plot.ts",
-    "efficient-frontier": "tsx scripts/efficient-frontier.ts"
+    "efficient-frontier": "tsx scripts/efficient-frontier.ts",
+    "compare-metrics": "tsx scripts/compare-metrics.ts"
   },
   "keywords": [
     "finance",
