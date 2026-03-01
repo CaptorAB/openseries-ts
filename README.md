@@ -151,6 +151,31 @@ Simulates asset returns (lognormal), builds portfolio frame, computes efficient 
 npm run efficient-frontier -- --simulations 3000 --points 25 --no-open
 ```
 
+### Compare Metrics Script
+
+Compares TypeScript openseries-ts metrics against Python openseries metrics. Loads timeseries data from `iris.json`, computes metrics with the TS implementation, and displays them side-by-side with Python metrics from `data.json`.
+
+**Prerequisites:** Run the Python script first to create the reference data in `~/Documents/`:
+
+```bash
+python scripts/load_py_openseries_data.py
+```
+
+This fetches the Captor Iris Bond timeseries from the API, saves it to `~/Documents/iris.json`, and exports Python-calculated metrics to `~/Documents/data.json`.
+
+| Command | Description |
+|---------|-------------|
+| `npm run compare-metrics` | Compare TS vs Python metrics (default: 4 decimal places) |
+
+**Options:** `--decimals=N` (pass after `--`), or `COMPARE_DECIMALS=N` env var (avoids npm `--` when using npm run).
+
+**Examples:**
+```bash
+npm run compare-metrics
+npm run compare-metrics -- --decimals=6
+COMPARE_DECIMALS=2 npm run compare-metrics
+```
+
 ## License
 
 BSD-3-Clause
