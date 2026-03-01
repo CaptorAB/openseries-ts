@@ -1358,55 +1358,74 @@ var OpenFrame = class {
   }
   /**
    * CAGR-based capture ratio vs benchmark column.
+   * Matches Python openseries capture_ratio_func behavior: uses frame data as-is (no resample)
+   * with dynamic time_factor = observations / (span_days/365.25).
+   *
    * @param ratio - "up" | "down" | "both" (up/down or both = up/down)
    * @param baseColumn - Benchmark column index (-1 = last)
-   * @param opts.freq - Resample frequency for capture (default "ME")
+   * @param opts.freq - If set, resample to period-end before computing (e.g. "ME" for monthly).
+   *   When omitted, uses frame data as-is to match Python default.
    */
   captureRatio(ratio, baseColumn = -1, opts) {
     const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;
     const { dates, columns } = this.tsdf;
     const colsFfilled = columns.map((col) => ffill(col));
-    const filtered = filterToBusinessDays(dates, colsFfilled, this.countries);
-    const resampled = resampleToPeriodEnd(
-      filtered.dates,
-      filtered.columns,
-      opts?.freq ?? "ME",
-      this.countries
-    );
-    const monthlyRets = resampled.columns.map((col) => {
-      const r = pctChange(col);
-      r[0] = 0;
-      return r.slice(1);
-    });
-    const timeFactor = 12;
-    const cagr = (rets, mask) => {
+    let retCols;
+    let timeFactor;
+    const firstIdx = dates[0] ?? "";
+    const lastIdx = dates[dates.length - 1] ?? "";
+    if (opts?.freq) {
+      const filtered = filterToBusinessDays(dates, colsFfilled, this.countries);
+      const resampled = resampleToPeriodEnd(
+        filtered.dates,
+        filtered.columns,
+        opts.freq,
+        this.countries
+      );
+      retCols = resampled.columns.map((col) => {
+        const r = pctChange(col);
+        r[0] = 0;
+        return r.slice(1);
+      });
+      timeFactor = opts.freq === "ME" ? 12 : opts.freq === "QE" ? 4 : opts.freq === "YE" ? 1 : 52;
+    } else {
+      retCols = colsFfilled.map((col) => {
+        const r = pctChange(col);
+        r[0] = 0;
+        return r.slice(1);
+      });
+      const spanDays = firstIdx && lastIdx ? (new Date(lastIdx).getTime() - new Date(firstIdx).getTime()) / (1e3 * 60 * 60 * 24) : 0;
+      const fraction = spanDays > 0 ? spanDays / 365.25 : 1;
+      timeFactor = retCols[0]?.length ? retCols[0].length / fraction : 12;
+    }
+    const cagr = (rets, mask, tf) => {
       const masked = rets.map((r, i) => mask[i] ? r + 1 : NaN).filter((x) => !Number.isNaN(x));
       if (masked.length === 0) return 0;
       const prod = masked.reduce((a, b) => a * b, 1);
-      const exponent = 1 / (masked.length / timeFactor);
+      const exponent = 1 / (masked.length / tf);
       return prod ** exponent - 1;
     };
-    const benchRets = monthlyRets[baseIdx] ?? [];
+    const benchRets = retCols[baseIdx] ?? [];
     const upMask = benchRets.map((r) => r > 0);
     const downMask = benchRets.map((r) => r < 0);
     return this.columnLabels.map((_, i) => {
       if (i === baseIdx) return 0;
-      const assetRets = monthlyRets[i] ?? [];
+      const assetRets = retCols[i] ?? [];
       if (assetRets.length !== benchRets.length || assetRets.length < 2) return NaN;
       if (ratio === "up") {
-        const upRtrn2 = cagr(assetRets, upMask);
-        const upIdx2 = cagr(benchRets, upMask);
+        const upRtrn2 = cagr(assetRets, upMask, timeFactor);
+        const upIdx2 = cagr(benchRets, upMask, timeFactor);
         return upIdx2 === 0 ? NaN : upRtrn2 / upIdx2;
       }
       if (ratio === "down") {
-        const downRtrn2 = cagr(assetRets, downMask);
-        const downIdx2 = cagr(benchRets, downMask);
+        const downRtrn2 = cagr(assetRets, downMask, timeFactor);
+        const downIdx2 = cagr(benchRets, downMask, timeFactor);
         return downIdx2 === 0 ? NaN : downRtrn2 / downIdx2;
       }
-      const upRtrn = cagr(assetRets, upMask);
-      const upIdx = cagr(benchRets, upMask);
-      const downRtrn = cagr(assetRets, downMask);
-      const downIdx = cagr(benchRets, downMask);
+      const upRtrn = cagr(assetRets, upMask, timeFactor);
+      const upIdx = cagr(benchRets, upMask, timeFactor);
+      const downRtrn = cagr(assetRets, downMask, timeFactor);
+      const downIdx = cagr(benchRets, downMask, timeFactor);
       if (Math.abs(upIdx) < 1e-12 || Math.abs(downIdx) < 1e-12) return NaN;
       if (downRtrn >= 0 || Math.abs(downRtrn) < 1e-12) return NaN;
       return upRtrn / upIdx / (downRtrn / downIdx);
@@ -1962,7 +1981,7 @@ function reportHtml(frame, options = {}) {
     metric: "Index Beta (weekly)",
     values: betas.map((v) => Number.isNaN(v) ? "" : formatNum(v))
   });
-  const captureRatios = frame.captureRatio("both", benchmarkIdx);
+  const captureRatios = frame.captureRatio("both", benchmarkIdx, { freq: "ME" });
   stats.push({
     metric: "Capture Ratio (monthly)",
     values: captureRatios.map(

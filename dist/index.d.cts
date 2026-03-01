@@ -302,9 +302,13 @@ declare class OpenFrame {
     }): this;
     /**
      * CAGR-based capture ratio vs benchmark column.
+     * Matches Python openseries capture_ratio_func behavior: uses frame data as-is (no resample)
+     * with dynamic time_factor = observations / (span_days/365.25).
+     *
      * @param ratio - "up" | "down" | "both" (up/down or both = up/down)
      * @param baseColumn - Benchmark column index (-1 = last)
-     * @param opts.freq - Resample frequency for capture (default "ME")
+     * @param opts.freq - If set, resample to period-end before computing (e.g. "ME" for monthly).
+     *   When omitted, uses frame data as-is to match Python default.
      */
     captureRatio(ratio: "up" | "down" | "both", baseColumn?: number, opts?: {
         freq?: ResampleFreq;

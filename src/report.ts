@@ -167,7 +167,7 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
     values: betas.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
   });
 
-  const captureRatios = frame.captureRatio("both", benchmarkIdx);
+  const captureRatios = frame.captureRatio("both", benchmarkIdx, { freq: "ME" });
   stats.push({
     metric: "Capture Ratio (monthly)",
     values: captureRatios.map((v) =>
