@@ -207,8 +207,7 @@ This fetches the Captor Iris Bond timeseries from the API, saves it to
 | --- | --- |
 | `npm run compare-metrics` | Compare TS vs Python metrics (default: 4 decimal places) |
 
-**Options:** `--decimals=N` (pass after `--`), or `COMPARE_DECIMALS=N` env var
-(avoids npm `--` when using npm run).
+**Options:** `--decimals=N` (pass after `--`).
 
 **Examples:**
 
