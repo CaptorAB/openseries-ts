@@ -47,15 +47,18 @@ console.log(series.maxDrawdown()); // Max drawdown
   or simulation output
 - `valueToRet()`, `toCumret()` - Convert price ↔ returns
 - `geoRet()`, `arithmeticRet()`, `vol()`, `varDown()`, `cvarDown()`
-- `sortinoRatio()`, `retVolRatio()`, `maxDrawdown()`, `downsideDeviation()`
+- `sortinoRatio()`, `retVolRatio()`, `maxDrawdown()`, `maxDrawdownBottomDate()`, `downsideDeviation()`
 - `ewmaVolFunc()`, `ewmaVarFunc()` - EWMA risk measures
 
 ### OpenFrame
 
 - `mergeSeries()`, `truncFrame()` - Align multiple series
-- `makePortfolio()` - Weighted portfolio (eq_weights, inv_vol, max_div)
-- `rebalancedPortfolio()` - Rebalanced TWR
-- `correlMatrix()`, `trackingErrorFunc()`, `infoRatioFunc()`, `beta()`
+- `makePortfolio()` - Weighted portfolio (eq_weights, inv_vol, max_div, min_vol_overweight)
+- `correlMatrix()`, `trackingError()`, `infoRatio()`, `beta()`, `jensenAlpha()`
+- `maxDrawdown()`, `maxDrawdownBottomDate()` - Per-column drawdown metrics
+- `captureRatio(ratio, baseColumn?, opts?)` - CAGR-based capture vs benchmark
+  (`opts.freq` optional; when omitted, uses frame data as-is)
+- `ordLeastSquaresFit()`, `filterToBusinessDays()`, `resampleToPeriodEnd()`
 
 ### ReturnSimulation
 

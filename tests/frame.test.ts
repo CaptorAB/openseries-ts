@@ -138,6 +138,22 @@ describe("OpenFrame", () => {
     expect(bottoms[1]).toBeUndefined();
   });
 
+  it("maxDrawdown returns zeros when frame has single date", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01"], [200]);
+    const frame = new OpenFrame([s1, s2]);
+    const mdd = frame.maxDrawdown();
+    expect(mdd).toEqual([0, 0]);
+  });
+
+  it("maxDrawdownBottomDate returns undefined per column when frame has single date", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01"], [200]);
+    const frame = new OpenFrame([s1, s2]);
+    const bottoms = frame.maxDrawdownBottomDate();
+    expect(bottoms).toEqual([undefined, undefined]);
+  });
+
   it("maxDrawdown matches constituent series maxDrawdown", () => {
     const s1 = OpenTimeSeries.fromArrays(
       "A",
@@ -533,6 +549,20 @@ describe("OpenFrame", () => {
       const frame = simulatedFrame();
       const ratios = frame.captureRatio("both", -1, { freq: "QE" });
       expect(ratios.length).toBe(3);
+    });
+
+    it("captureRatio with freq YE uses annual time factor", () => {
+      const frame = simulatedFrame();
+      const ratios = frame.captureRatio("both", -1, { freq: "YE" });
+      expect(ratios.length).toBe(3);
+      expect(ratios[2]).toBe(0);
+    });
+
+    it("captureRatio with freq WE uses weekly time factor", () => {
+      const frame = simulatedFrame();
+      const ratios = frame.captureRatio("both", -1, { freq: "WE" });
+      expect(ratios.length).toBe(3);
+      expect(ratios[2]).toBe(0);
     });
 
     it("captureRatio up returns NaN when benchmark has no up months", () => {

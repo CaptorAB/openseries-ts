@@ -32,15 +32,18 @@ CLI via <code>npm run report</code></li>
 or simulation output</li>
 <li><code>valueToRet()</code>, <code>toCumret()</code> - Convert price ↔ returns</li>
 <li><code>geoRet()</code>, <code>arithmeticRet()</code>, <code>vol()</code>, <code>varDown()</code>, <code>cvarDown()</code></li>
-<li><code>sortinoRatio()</code>, <code>retVolRatio()</code>, <code>maxDrawdown()</code>, <code>downsideDeviation()</code></li>
+<li><code>sortinoRatio()</code>, <code>retVolRatio()</code>, <code>maxDrawdown()</code>, <code>maxDrawdownBottomDate()</code>, <code>downsideDeviation()</code></li>
 <li><code>ewmaVolFunc()</code>, <code>ewmaVarFunc()</code> - EWMA risk measures</li>
 </ul>
 <h3 id="openframe" class="tsd-anchor-link">OpenFrame<a href="#openframe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul>
 <li><code>mergeSeries()</code>, <code>truncFrame()</code> - Align multiple series</li>
-<li><code>makePortfolio()</code> - Weighted portfolio (eq_weights, inv_vol, max_div)</li>
-<li><code>rebalancedPortfolio()</code> - Rebalanced TWR</li>
-<li><code>correlMatrix()</code>, <code>trackingErrorFunc()</code>, <code>infoRatioFunc()</code>, <code>beta()</code></li>
+<li><code>makePortfolio()</code> - Weighted portfolio (eq_weights, inv_vol, max_div, min_vol_overweight)</li>
+<li><code>correlMatrix()</code>, <code>trackingError()</code>, <code>infoRatio()</code>, <code>beta()</code>, <code>jensenAlpha()</code></li>
+<li><code>maxDrawdown()</code>, <code>maxDrawdownBottomDate()</code> - Per-column drawdown metrics</li>
+<li><code>captureRatio(ratio, baseColumn?, opts?)</code> - CAGR-based capture vs benchmark
+(<code>opts.freq</code> optional; when omitted, uses frame data as-is)</li>
+<li><code>ordLeastSquaresFit()</code>, <code>filterToBusinessDays()</code>, <code>resampleToPeriodEnd()</code></li>
 </ul>
 <h3 id="returnsimulation" class="tsd-anchor-link">ReturnSimulation<a href="#returnsimulation" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul>
