@@ -32,24 +32,24 @@ const PY_TO_TS: Record<string, string> = {
   "Simple return": "value_ret",
   "Geometric return": "geo_ret",
   "Arithmetic return": "arithmetic_ret",
-  "Volatility": "vol",
+  Volatility: "vol",
   "Downside deviation": "downside_deviation",
   "Return vol ratio": "ret_vol_ratio",
   "Sortino ratio": "sortino_ratio",
   "Z-score": "z_score",
-  "Skew": "skew",
-  "Kurtosis": "kurtosis",
+  Skew: "skew",
+  Kurtosis: "kurtosis",
   "Positive share": "positive_share",
   "VaR 95.0%": "var_down",
   "CVaR 95.0%": "cvar_down",
   "Imp vol from VaR 95%": "vol_from_var",
-  "Worst": "worst",
+  Worst: "worst",
   "Worst month": "worst_month",
   "Max drawdown": "max_drawdown",
   "Max drawdown date": "max_drawdown_date",
   "first indices": "first_idx",
   "last indices": "last_idx",
-  "observations": "length",
+  observations: "length",
   "span of days": "span_of_days",
   // Frame comparison metrics (same key in both)
   tracking_error: "tracking_error",
@@ -72,25 +72,27 @@ interface FrameJsonItem {
   valuetype?: string;
 }
 
-function loadFrameFromJson(path: string): { irisSeries: OpenTimeSeries; frame: OpenFrame } {
+function loadFrameFromJson(path: string): {
+  irisSeries: OpenTimeSeries;
+  frame: OpenFrame;
+} {
   const raw = JSON.parse(readFileSync(path, "utf-8"));
   const items: FrameJsonItem[] = Array.isArray(raw) ? raw : [raw];
   if (items.length < 1) {
     throw new Error("frame.json must contain at least one series");
   }
   const constituents = items.map((item) =>
-    OpenTimeSeries.fromArrays(
-      item.name ?? "Series",
-      item.dates,
-      item.values,
-      { timeseriesId: item.timeseries_id ?? "", countries: "SE" },
-    ),
+    OpenTimeSeries.fromArrays(item.name ?? "Series", item.dates, item.values, {
+      timeseriesId: item.timeseries_id ?? "",
+      countries: "SE",
+    }),
   );
   const frame = new OpenFrame(constituents).truncFrame();
   frame.constituents.forEach((c) => c.toCumret());
   frame.mergeSeries("outer");
   const irisIdx = frame.columnLabels.indexOf(IRIS_LABEL);
-  const irisSeries = irisIdx >= 0 ? frame.constituents[irisIdx] : frame.constituents[0];
+  const irisSeries =
+    irisIdx >= 0 ? frame.constituents[irisIdx] : frame.constituents[0];
   return { irisSeries, frame };
 }
 
@@ -165,32 +167,39 @@ function main(): void {
 
   // 1. Single-asset metrics: OpenTimeSeries("Captor Iris Bond") - TS vs Python
   const tsMetrics: Record<string, string | number | undefined> = {};
-  const metrics: { pyKey: string; getTs: () => number | string | undefined }[] = [
-    { pyKey: "value_ret", getTs: () => irisSeries.valueRet() },
-    { pyKey: "geo_ret", getTs: () => irisSeries.geoRet() },
-    { pyKey: "arithmetic_ret", getTs: () => irisSeries.arithmeticRet() },
-    { pyKey: "vol", getTs: () => irisSeries.vol() },
-    { pyKey: "downside_deviation", getTs: () => irisSeries.downsideDeviation() },
-    { pyKey: "ret_vol_ratio", getTs: () => irisSeries.retVolRatio(0) },
-    { pyKey: "sortino_ratio", getTs: () => irisSeries.sortinoRatio(0, 0) },
-    { pyKey: "z_score", getTs: () => irisSeries.zScore() },
-    { pyKey: "skew", getTs: () => irisSeries.skew() },
-    { pyKey: "kurtosis", getTs: () => irisSeries.kurtosis() },
-    { pyKey: "positive_share", getTs: () => irisSeries.positiveShare() },
-    { pyKey: "var_down", getTs: () => irisSeries.varDown(0.95) },
-    { pyKey: "cvar_down", getTs: () => irisSeries.cvarDown(0.95) },
-    { pyKey: "vol_from_var", getTs: () => irisSeries.volFromVar(0.95) },
-    { pyKey: "worst", getTs: () => irisSeries.worst(1) },
-    { pyKey: "worst_month", getTs: () => irisSeries.worstMonth() },
-    { pyKey: "max_drawdown", getTs: () => irisSeries.maxDrawdown() },
-    { pyKey: "max_drawdown_date", getTs: () => irisSeries.maxDrawdownBottomDate() },
-    { pyKey: "first_idx", getTs: () => irisSeries.firstIdx },
-    { pyKey: "last_idx", getTs: () => irisSeries.lastIdx },
-    { pyKey: "length", getTs: () => irisSeries.length },
-    { pyKey: "span_of_days", getTs: () => irisSeries.spanOfDays },
-    { pyKey: "yearfrac", getTs: () => irisSeries.yearfrac },
-    { pyKey: "periods_in_a_year", getTs: () => irisSeries.periodsInAYear },
-  ];
+  const metrics: { pyKey: string; getTs: () => number | string | undefined }[] =
+    [
+      { pyKey: "value_ret", getTs: () => irisSeries.valueRet() },
+      { pyKey: "geo_ret", getTs: () => irisSeries.geoRet() },
+      { pyKey: "arithmetic_ret", getTs: () => irisSeries.arithmeticRet() },
+      { pyKey: "vol", getTs: () => irisSeries.vol() },
+      {
+        pyKey: "downside_deviation",
+        getTs: () => irisSeries.downsideDeviation(),
+      },
+      { pyKey: "ret_vol_ratio", getTs: () => irisSeries.retVolRatio(0) },
+      { pyKey: "sortino_ratio", getTs: () => irisSeries.sortinoRatio(0, 0) },
+      { pyKey: "z_score", getTs: () => irisSeries.zScore() },
+      { pyKey: "skew", getTs: () => irisSeries.skew() },
+      { pyKey: "kurtosis", getTs: () => irisSeries.kurtosis() },
+      { pyKey: "positive_share", getTs: () => irisSeries.positiveShare() },
+      { pyKey: "var_down", getTs: () => irisSeries.varDown(0.95) },
+      { pyKey: "cvar_down", getTs: () => irisSeries.cvarDown(0.95) },
+      { pyKey: "vol_from_var", getTs: () => irisSeries.volFromVar(0.95) },
+      { pyKey: "worst", getTs: () => irisSeries.worst(1) },
+      { pyKey: "worst_month", getTs: () => irisSeries.worstMonth() },
+      { pyKey: "max_drawdown", getTs: () => irisSeries.maxDrawdown() },
+      {
+        pyKey: "max_drawdown_date",
+        getTs: () => irisSeries.maxDrawdownBottomDate(),
+      },
+      { pyKey: "first_idx", getTs: () => irisSeries.firstIdx },
+      { pyKey: "last_idx", getTs: () => irisSeries.lastIdx },
+      { pyKey: "length", getTs: () => irisSeries.length },
+      { pyKey: "span_of_days", getTs: () => irisSeries.spanOfDays },
+      { pyKey: "yearfrac", getTs: () => irisSeries.yearfrac },
+      { pyKey: "periods_in_a_year", getTs: () => irisSeries.periodsInAYear },
+    ];
 
   for (const { pyKey, getTs } of metrics) {
     try {
@@ -220,7 +229,9 @@ function main(): void {
       tsMetrics["capture_ratio_both"] = capBoth[irCol];
       const corr = frame.correlMatrix();
       tsMetrics["correlation"] = corr[irCol][bmkCol];
-      const ols = frame.ordLeastSquaresFit(irCol, bmkCol, { fittedSeries: false });
+      const ols = frame.ordLeastSquaresFit(irCol, bmkCol, {
+        fittedSeries: false,
+      });
       tsMetrics["OLS coefficient"] = ols.coefficient;
     } catch (err) {
       console.warn("Could not compute comparison metrics:", err);
@@ -288,7 +299,9 @@ function main(): void {
   console.log("\n" + rows.join("\n"));
   console.log("=".repeat(col1 + col2 + col3 + col4));
 
-  console.log(`\nMatched: ${matches}/${compared} (rounded to ${decimals} decimals or same date)`);
+  console.log(
+    `\nMatched: ${matches}/${compared} (rounded to ${decimals} decimals or same date)`,
+  );
 }
 
 try {

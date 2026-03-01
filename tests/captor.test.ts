@@ -16,10 +16,15 @@ describe("fetchCaptorSeries", () => {
         if (url.includes("/opentimeseries/")) {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve({ ...mockResponse, id: url.split("/").pop() }),
+            json: () =>
+              Promise.resolve({ ...mockResponse, id: url.split("/").pop() }),
           } as Response);
         }
-        return Promise.resolve({ ok: false, status: 404, statusText: "Not Found" } as Response);
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+        } as Response);
       }),
     );
   });
@@ -48,9 +53,9 @@ describe("fetchCaptorSeries", () => {
       statusText: "Not Found",
     } as Response);
 
-    await expect(
-      fetchCaptorSeries("nonexistent-id"),
-    ).rejects.toThrow("Failed to fetch nonexistent-id: 404 Not Found");
+    await expect(fetchCaptorSeries("nonexistent-id")).rejects.toThrow(
+      "Failed to fetch nonexistent-id: 404 Not Found",
+    );
   });
 
   it("calls correct API URL", async () => {
@@ -130,8 +135,8 @@ describe("fetchCaptorSeriesBatch", () => {
         statusText: "Internal Server Error",
       } as Response);
 
-    await expect(
-      fetchCaptorSeriesBatch(["id-1", "id-2"]),
-    ).rejects.toThrow("Failed to fetch id-2: 500 Internal Server Error");
+    await expect(fetchCaptorSeriesBatch(["id-1", "id-2"])).rejects.toThrow(
+      "Failed to fetch id-2: 500 Internal Server Error",
+    );
   });
 });

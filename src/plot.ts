@@ -99,9 +99,7 @@ export function plotSeriesHtml(
 ): string {
   const title = options.title ?? DEFAULT_TITLE;
   const logoUrl =
-    options.addLogo !== false
-      ? (options.logoUrl ?? DEFAULT_LOGO_URL)
-      : "";
+    options.addLogo !== false ? (options.logoUrl ?? DEFAULT_LOGO_URL) : "";
   const rawData = seriesToPlotData(seriesOrFrame);
   const asDrawdown = options.asDrawdown ?? false;
   const cumData = asDrawdown
@@ -115,12 +113,10 @@ export function plotSeriesHtml(
 
   const logoEl = logoUrl
     ? `<div class="plot-header-logo"><img src="${logoUrl}" alt="Logo" /></div>`
-    : '<div></div>';
+    : "<div></div>";
 
   const titleEl =
-    title !== ""
-      ? `<h1 class="plot-title">${title}</h1>`
-      : '<div></div>';
+    title !== "" ? `<h1 class="plot-title">${title}</h1>` : "<div></div>";
 
   return `<!DOCTYPE html>
 <html lang="en">

@@ -23,7 +23,13 @@ describe("simulatePortfolios", () => {
   });
 
   it("handles constant returns (covers vol=0 branch)", () => {
-    const dates = ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"];
+    const dates = [
+      "2020-01-01",
+      "2020-01-02",
+      "2020-01-03",
+      "2020-01-06",
+      "2020-01-07",
+    ];
     const s1 = OpenTimeSeries.fromArrays("A", dates, [100, 101, 102, 103, 104]);
     const s2 = OpenTimeSeries.fromArrays("B", dates, [100, 101, 102, 103, 104]);
     s1.valueToRet();
@@ -33,7 +39,9 @@ describe("simulatePortfolios", () => {
     const sims = simulatePortfolios(frame, 10, 71);
     expect(sims.length).toBeGreaterThan(0);
     // With identical returns, portfolio vol is 0, sharpe gets 0 from vol===0 branch
-    expect(sims.every((s) => s.stdev >= 0 && Number.isFinite(s.sharpe))).toBe(true);
+    expect(sims.every((s) => s.stdev >= 0 && Number.isFinite(s.sharpe))).toBe(
+      true,
+    );
   });
 
   it("first portfolio ret, stdev, sharpe match expected (normal 0.07/0.15, seed 71)", () => {
@@ -50,7 +58,11 @@ describe("simulatePortfolios", () => {
   });
 
   it("weights sum to 1 for each portfolio", () => {
-    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const sims = simulatePortfolios(frame, 50, 42);
     for (const s of sims) {
       expect(s.weights.reduce((a, b) => a + b, 0)).toBeCloseTo(1);
@@ -60,7 +72,11 @@ describe("simulatePortfolios", () => {
 
 describe("efficientFrontier", () => {
   it("returns frontier and simulated with correct structure (seed 71)", () => {
-    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const ef = efficientFrontier(frame, 500, 71, 20);
     expect(ef.frontier.length).toBeGreaterThanOrEqual(1);
     expect(ef.simulated.length).toBeGreaterThan(0);
@@ -82,18 +98,32 @@ describe("efficientFrontier", () => {
   });
 
   it("frontier traces efficient upper envelope (stdev and ret increase left-to-right)", () => {
-    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const ef = efficientFrontier(frame, 500, 71, 25);
     for (let i = 1; i < ef.frontier.length; i++) {
-      expect(ef.frontier[i]!.stdev).toBeGreaterThanOrEqual(ef.frontier[i - 1]!.stdev - 1e-9);
-      expect(ef.frontier[i]!.ret).toBeGreaterThanOrEqual(ef.frontier[i - 1]!.ret - 1e-9);
+      expect(ef.frontier[i]!.stdev).toBeGreaterThanOrEqual(
+        ef.frontier[i - 1]!.stdev - 1e-9,
+      );
+      expect(ef.frontier[i]!.ret).toBeGreaterThanOrEqual(
+        ef.frontier[i - 1]!.ret - 1e-9,
+      );
     }
   });
 
   it("frontier points have increasing return", () => {
-    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const ef = efficientFrontier(frame, 500, 71, 20);
-    const rets = ef.frontier.map((p) => p.ret).filter((r) => Number.isFinite(r));
+    const rets = ef.frontier
+      .map((p) => p.ret)
+      .filter((r) => Number.isFinite(r));
     if (rets.length >= 2) {
       for (let i = 1; i < rets.length; i++) {
         expect(rets[i]).toBeGreaterThanOrEqual(rets[i - 1] - 1e-6);
@@ -113,7 +143,6 @@ describe("efficientFrontier", () => {
     expect(ef.frontier.length).toBeGreaterThan(0);
     expect(ef.maxSharpe).toBeDefined();
   });
-
 
   it("exercises projected gradient boundary with extreme mean spread", () => {
     // Assets with very different mean returns can cause analytic solution to have
@@ -141,7 +170,11 @@ describe("efficientFrontier", () => {
 
 describe("preparePlotData", () => {
   it("returns assets, current portfolio, and max sharpe points", () => {
-    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const current = frame.makePortfolio("Current Portfolio", "eq_weights");
     const ef = efficientFrontier(frame, 500, 71, 20);
     const points = preparePlotData(frame, current, ef.maxSharpe);

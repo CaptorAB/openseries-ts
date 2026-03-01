@@ -82,8 +82,7 @@ function parseArgs(args: string[]): {
       toDate = args[i + 1]!;
       i++;
     } else if (a === "--countries" && args[i + 1]) {
-      countries = args[i + 1]!
-        .split(",")
+      countries = args[i + 1]!.split(",")
         .map((c) => c.trim().toUpperCase() as CountryCode)
         .filter(Boolean);
       i++;

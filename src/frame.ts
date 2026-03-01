@@ -10,7 +10,11 @@ import { mean, std } from "./utils";
 import { OpenTimeSeries } from "./series";
 import { pctChange, ffill, cumProd } from "./utils";
 import type { CountryCode } from "./bizcalendar";
-import { filterToBusinessDays, resampleToPeriodEnd, type ResampleFreq } from "./bizcalendar";
+import {
+  filterToBusinessDays,
+  resampleToPeriodEnd,
+  type ResampleFreq,
+} from "./bizcalendar";
 
 function normalizeCountries(c: CountryCode | CountryCode[]): CountryCode[] {
   return Array.isArray(c) ? c : [c];
@@ -44,7 +48,10 @@ function alignSeriesToCommonDates(
   });
 
   const getVal = (
-    { dateToVal, seriesDates }: { dateToVal: Map<string, number>; seriesDates: string[] },
+    {
+      dateToVal,
+      seriesDates,
+    }: { dateToVal: Map<string, number>; seriesDates: string[] },
     d: string,
   ): number | null => {
     const exact = dateToVal.get(d);
@@ -163,7 +170,11 @@ export class OpenFrame {
       return drawdown;
     });
     this.tsdf = { dates: this.tsdf.dates, columns: newColumns };
-    for (let i = 0; i < this.constituents.length && i < newColumns.length; i++) {
+    for (
+      let i = 0;
+      i < this.constituents.length && i < newColumns.length;
+      i++
+    ) {
       const col = newColumns[i]!;
       this.constituents[i]!.tsdf = this.tsdf.dates.map((d, j) => ({
         date: d,
@@ -188,7 +199,9 @@ export class OpenFrame {
       });
     }
     if (vtypes.some(Boolean))
-      throw new MixedValuetypesError("Mix of series types will give inconsistent results");
+      throw new MixedValuetypesError(
+        "Mix of series types will give inconsistent results",
+      );
     const pcts = this.tsdf.columns.map((col) => pctChange(ffill(col)));
     pcts.forEach((p) => (p[0] = 0));
     return pcts;
@@ -201,8 +214,12 @@ export class OpenFrame {
     for (let i = 0; i < n; i++) {
       matrix[i] = [];
       for (let j = 0; j < n; j++) {
-        const a = rets[i].filter((_, k) => !Number.isNaN(rets[i][k]) && !Number.isNaN(rets[j][k]));
-        const b = rets[j].filter((_, k) => !Number.isNaN(rets[i][k]) && !Number.isNaN(rets[j][k]));
+        const a = rets[i].filter(
+          (_, k) => !Number.isNaN(rets[i][k]) && !Number.isNaN(rets[j][k]),
+        );
+        const b = rets[j].filter(
+          (_, k) => !Number.isNaN(rets[i][k]) && !Number.isNaN(rets[j][k]),
+        );
         if (a.length < 2) {
           matrix[i][j] = i === j ? 1 : NaN;
         } else {
@@ -249,7 +266,10 @@ export class OpenFrame {
       }
       portfolioRets.push(r);
     }
-    const cum = cumProd(portfolioRets.map((r) => 1 + r), 1);
+    const cum = cumProd(
+      portfolioRets.map((r) => 1 + r),
+      1,
+    );
     return { dates: this.tsdf.dates, values: cum };
   }
 
@@ -376,7 +396,10 @@ export class OpenFrame {
     });
   }
 
-  trackingError(baseColumn = -1, _opts?: { fromDate?: string; toDate?: string }): number[] {
+  trackingError(
+    baseColumn = -1,
+    _opts?: { fromDate?: string; toDate?: string },
+  ): number[] {
     const rets = this.ensureReturns().map((col) => col.slice(1));
     const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;
     const baseRets = rets[baseIdx];
@@ -485,7 +508,9 @@ export class OpenFrame {
       vx += (xi - mx) ** 2;
     }
     const coefficient = vx > 0 ? cov / vx : NaN;
-    const intercept = Number.isFinite(coefficient) ? my - coefficient * mx : NaN;
+    const intercept = Number.isFinite(coefficient)
+      ? my - coefficient * mx
+      : NaN;
     let rsquared = NaN;
     if (Number.isFinite(coefficient) && Number.isFinite(intercept)) {
       let ssTot = 0;
@@ -497,8 +522,14 @@ export class OpenFrame {
       }
       rsquared = ssTot > 0 ? 1 - ssRes / ssTot : NaN;
     }
-    if (fittedSeries && Number.isFinite(coefficient) && Number.isFinite(intercept)) {
-      const fitted = xCol.map((xi) => (Number.isFinite(xi) ? intercept + coefficient * xi : NaN));
+    if (
+      fittedSeries &&
+      Number.isFinite(coefficient) &&
+      Number.isFinite(intercept)
+    ) {
+      const fitted = xCol.map((xi) =>
+        Number.isFinite(xi) ? intercept + coefficient * xi : NaN,
+      );
       this.tsdf.columns.push(fitted);
       const yLabel = this.columnLabels[yColumn] ?? "y";
       const xLabel = this.columnLabels[xColumn] ?? "x";
@@ -566,11 +597,13 @@ export class OpenFrame {
    * @param opts.endCut - New last date (default: earliest last date if where includes 'after')
    * @param opts.where - Which end(s) to truncate when cuts not provided
    */
-  truncFrame(opts: {
-    startCut?: string;
-    endCut?: string;
-    where?: "before" | "after" | "both";
-  } = {}): this {
+  truncFrame(
+    opts: {
+      startCut?: string;
+      endCut?: string;
+      where?: "before" | "after" | "both";
+    } = {},
+  ): this {
     const { startCut, endCut, where = "both" } = opts;
     let fromDate = startCut;
     let toDate = endCut;
@@ -590,10 +623,14 @@ export class OpenFrame {
       .reverse()
       .findIndex((d) => d <= toDate);
     const toIdx =
-      toIdxRev < 0 ? this.tsdf.dates.length - 1 : this.tsdf.dates.length - 1 - toIdxRev;
+      toIdxRev < 0
+        ? this.tsdf.dates.length - 1
+        : this.tsdf.dates.length - 1 - toIdxRev;
     if (fromIdx < 0 || toIdx < fromIdx) return this;
     const dates = this.tsdf.dates.slice(fromIdx, toIdx + 1);
-    const columns = this.tsdf.columns.map((col) => col.slice(fromIdx, toIdx + 1));
+    const columns = this.tsdf.columns.map((col) =>
+      col.slice(fromIdx, toIdx + 1),
+    );
     this.tsdf = { dates, columns };
     for (const c of this.constituents) {
       const colIdx = this.columnLabels.indexOf(c.label);
@@ -642,7 +679,14 @@ export class OpenFrame {
         r[0] = 0;
         return r.slice(1);
       });
-      timeFactor = opts.freq === "ME" ? 12 : opts.freq === "QE" ? 4 : opts.freq === "YE" ? 1 : 52;
+      timeFactor =
+        opts.freq === "ME"
+          ? 12
+          : opts.freq === "QE"
+            ? 4
+            : opts.freq === "YE"
+              ? 1
+              : 52;
     } else {
       retCols = colsFfilled.map((col) => {
         const r = pctChange(col);
@@ -673,7 +717,8 @@ export class OpenFrame {
     return this.columnLabels.map((_, i) => {
       if (i === baseIdx) return 0;
       const assetRets = retCols[i] ?? [];
-      if (assetRets.length !== benchRets.length || assetRets.length < 2) return NaN;
+      if (assetRets.length !== benchRets.length || assetRets.length < 2)
+        return NaN;
       if (ratio === "up") {
         const upRtrn = cagr(assetRets, upMask, timeFactor);
         const upIdx = cagr(benchRets, upMask, timeFactor);
@@ -690,7 +735,7 @@ export class OpenFrame {
       const downIdx = cagr(benchRets, downMask, timeFactor);
       if (Math.abs(upIdx) < 1e-12 || Math.abs(downIdx) < 1e-12) return NaN;
       if (downRtrn >= 0 || Math.abs(downRtrn) < 1e-12) return NaN;
-      return (upRtrn / upIdx) / (downRtrn / downIdx);
+      return upRtrn / upIdx / (downRtrn / downIdx);
     });
   }
 }

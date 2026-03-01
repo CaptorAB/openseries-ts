@@ -11,7 +11,13 @@ import { OpenFrame } from "../src/frame";
 import { OpenTimeSeries } from "../src/series";
 
 function frameForPlot(numSeries = 2): OpenFrame {
-  const dates = ["2020-01-01", "2020-01-02", "2020-01-03", "2020-06-01", "2020-12-31"];
+  const dates = [
+    "2020-01-01",
+    "2020-01-02",
+    "2020-01-03",
+    "2020-06-01",
+    "2020-12-31",
+  ];
   const series = Array.from({ length: numSeries }, (_, i) =>
     OpenTimeSeries.fromArrays(
       `Asset ${i}`,
@@ -59,7 +65,11 @@ describe("plotSeriesHtml", () => {
   });
 
   it("includes chart canvas and Chart.js script", () => {
-    const series = OpenTimeSeries.fromArrays("S", ["2020-01-01", "2020-01-02"], [100, 101]);
+    const series = OpenTimeSeries.fromArrays(
+      "S",
+      ["2020-01-01", "2020-01-02"],
+      [100, 101],
+    );
     const html = plotSeriesHtml(series);
     expect(html).toContain('id="plotChart"');
     expect(html).toContain("chart.js");

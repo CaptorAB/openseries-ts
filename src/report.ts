@@ -15,7 +15,8 @@ export interface ReportOptions {
   addLogo?: boolean;
 }
 
-const DEFAULT_LOGO_URL = "https://sales.captor.se/captor_logo_sv_1600_icketransparent.png";
+const DEFAULT_LOGO_URL =
+  "https://sales.captor.se/captor_logo_sv_1600_icketransparent.png";
 
 function formatPct(val: number, decimals = 2): string {
   if (Number.isNaN(val)) return "";
@@ -28,7 +29,10 @@ function formatNum(val: number, decimals = 2): string {
 }
 
 /** Exported for testing. */
-export function computeAnnualReturns(dates: string[], values: number[]): Record<string, number> {
+export function computeAnnualReturns(
+  dates: string[],
+  values: number[],
+): Record<string, number> {
   const byYear: Record<string, { first: number; last: number }> = {};
   for (let i = 0; i < dates.length; i++) {
     const year = dates[i].slice(0, 4);
@@ -49,7 +53,8 @@ export function computeCaptureRatioCagr(
   benchmarkRets: number[],
   timeFactor: number,
 ): number {
-  if (assetRets.length !== benchmarkRets.length || assetRets.length < 2) return NaN;
+  if (assetRets.length !== benchmarkRets.length || assetRets.length < 2)
+    return NaN;
   const upMask = benchmarkRets.map((r) => r > 0);
   const downMask = benchmarkRets.map((r) => r < 0);
   const cagr = (rets: number[], mask: boolean[]): number => {
@@ -65,9 +70,10 @@ export function computeCaptureRatioCagr(
   const upIdxReturn = cagr(benchmarkRets, upMask);
   const downReturn = cagr(assetRets, downMask);
   const downIdxReturn = cagr(benchmarkRets, downMask);
-  if (Math.abs(upIdxReturn) < 1e-12 || Math.abs(downIdxReturn) < 1e-12) return NaN;
+  if (Math.abs(upIdxReturn) < 1e-12 || Math.abs(downIdxReturn) < 1e-12)
+    return NaN;
   if (downReturn >= 0 || Math.abs(downReturn) < 1e-12) return NaN;
-  return (upRtrn / upIdxReturn) / (downReturn / downIdxReturn);
+  return upRtrn / upIdxReturn / (downReturn / downIdxReturn);
 }
 
 /**
@@ -84,13 +90,19 @@ export function computeCaptureRatioCagr(
  * @returns HTML string
  * @throws Error when frame has fewer than 2 constituents
  */
-export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): string {
+export function reportHtml(
+  frame: OpenFrame,
+  options: ReportOptions = {},
+): string {
   if (frame.itemCount < 2) {
-    throw new Error("OpenFrame must have at least 2 constituents to generate a report");
+    throw new Error(
+      "OpenFrame must have at least 2 constituents to generate a report",
+    );
   }
 
   const title = options.title ?? "Portfolio Report";
-  const logoUrl = options.addLogo !== false ? (options.logoUrl ?? DEFAULT_LOGO_URL) : "";
+  const logoUrl =
+    options.addLogo !== false ? (options.logoUrl ?? DEFAULT_LOGO_URL) : "";
   const countries = frame.countries;
 
   const benchmarkIdx = frame.itemCount - 1;
@@ -114,14 +126,24 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
 
   const stats: { metric: string; values: (string | number)[] }[] = [];
 
-  const addRow = (label: string, fn: (s: OpenTimeSeries, i: number) => number) => {
+  const addRow = (
+    label: string,
+    fn: (s: OpenTimeSeries, i: number) => number,
+  ) => {
     const vals = series.map((s, i) => fn(s, i));
-    stats.push({ metric: label, values: vals.map((v) => (Number.isNaN(v) ? "" : formatPct(v))) });
+    stats.push({
+      metric: label,
+      values: vals.map((v) => (Number.isNaN(v) ? "" : formatPct(v))),
+    });
   };
 
   const lastDate = rawDates[rawDates.length - 1] ?? "";
-  const lastYear = lastDate ? parseInt(lastDate.slice(0, 4), 10) : new Date().getFullYear();
-  const lastMonth = lastDate ? parseInt(lastDate.slice(5, 7), 10) : new Date().getMonth() + 1;
+  const lastYear = lastDate
+    ? parseInt(lastDate.slice(0, 4), 10)
+    : new Date().getFullYear();
+  const lastMonth = lastDate
+    ? parseInt(lastDate.slice(5, 7), 10)
+    : new Date().getMonth() + 1;
   const ytdFrom = lastBusinessDayOfYear(lastYear - 1, countries);
   const mtdFrom =
     lastMonth > 1
@@ -129,8 +151,12 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
       : lastBusinessDayOfMonth(lastYear - 1, 12, countries);
 
   addRow("Return (CAGR)", (s) => s.geoRet());
-  addRow("Year-to-Date", (s) => s.valueRet({ fromDate: ytdFrom, toDate: lastDate }));
-  addRow("Month-to-Date", (s) => s.valueRet({ fromDate: mtdFrom, toDate: lastDate }));
+  addRow("Year-to-Date", (s) =>
+    s.valueRet({ fromDate: ytdFrom, toDate: lastDate }),
+  );
+  addRow("Month-to-Date", (s) =>
+    s.valueRet({ fromDate: mtdFrom, toDate: lastDate }),
+  );
   addRow("Volatility", (s) => s.vol());
   stats.push({
     metric: "Sharpe Ratio",
@@ -176,7 +202,9 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
     values: betas.map((v) => (Number.isNaN(v) ? "" : formatNum(v))),
   });
 
-  const captureRatios = frame.captureRatio("both", benchmarkIdx, { freq: "ME" });
+  const captureRatios = frame.captureRatio("both", benchmarkIdx, {
+    freq: "ME",
+  });
   stats.push({
     metric: "Capture Ratio (monthly)",
     values: captureRatios.map((v, i) =>
@@ -250,7 +278,7 @@ function generateHtml(
 
   const logoEl = logoUrl
     ? `<div class="header-logo"><img src="${logoUrl}" alt="Logo" /></div>`
-    : '<div></div>';
+    : "<div></div>";
 
   return `<!DOCTYPE html>
 <html lang="en">

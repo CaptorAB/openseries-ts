@@ -1,6 +1,15 @@
-import { DateAlignmentError, InitialValueZeroError, ResampleDataLossError, ValueType } from "./types";
+import {
+  DateAlignmentError,
+  InitialValueZeroError,
+  ResampleDataLossError,
+  ValueType,
+} from "./types";
 import type { CountryCode } from "./bizcalendar";
-import { filterToBusinessDays, resampleToPeriodEnd, type ResampleFreq } from "./bizcalendar";
+import {
+  filterToBusinessDays,
+  resampleToPeriodEnd,
+  type ResampleFreq,
+} from "./bizcalendar";
 import {
   cumProd,
   ffill,
@@ -124,8 +133,15 @@ export class OpenTimeSeries {
 
   /** Creates an OpenTimeSeries from simulation dateColumns by column index. */
   static fromDateColumns(
-    dateColumns: { dates: string[]; columns: { name: string; values: number[] }[] },
-    options?: { columnIndex?: number; valuetype?: ValueType; countries?: CountryCode | CountryCode[] },
+    dateColumns: {
+      dates: string[];
+      columns: { name: string; values: number[] }[];
+    },
+    options?: {
+      columnIndex?: number;
+      valuetype?: ValueType;
+      countries?: CountryCode | CountryCode[];
+    },
   ): OpenTimeSeries {
     const idx = options?.columnIndex ?? 0;
     const col = dateColumns.columns[idx];
@@ -160,7 +176,10 @@ export class OpenTimeSeries {
     return this.tsdf.map((r) => r.date);
   }
 
-  private sliceByRange(opts: DateRangeOptions): { dates: string[]; values: number[] } {
+  private sliceByRange(opts: DateRangeOptions): {
+    dates: string[];
+    values: number[];
+  } {
     let fromIdx = 0;
     let toIdx = this.tsdf.length - 1;
 
@@ -170,7 +189,10 @@ export class OpenTimeSeries {
       earlier.setMonth(earlier.getMonth() - opts.monthsFromLast);
       const fromStr = dateToStr(earlier);
       fromIdx = this.tsdf.findIndex((r) => r.date >= fromStr);
-      if (fromIdx < 0) throw new DateAlignmentError("months_offset implies start before first date");
+      if (fromIdx < 0)
+        throw new DateAlignmentError(
+          "months_offset implies start before first date",
+        );
     }
     if (opts.fromDate != null) {
       const idx = this.tsdf.findIndex((r) => r.date >= opts.fromDate!);
@@ -186,7 +208,11 @@ export class OpenTimeSeries {
     return { dates, values };
   }
 
-  private calcTimeFactor(dates: string[], values: number[], periodsInYearFixed?: number): number {
+  private calcTimeFactor(
+    dates: string[],
+    values: number[],
+    periodsInYearFixed?: number,
+  ): number {
     if (periodsInYearFixed != null) return periodsInYearFixed;
     const days = daysBetween(dates[0], dates[dates.length - 1]);
     const fraction = days / 365.25;
@@ -221,7 +247,10 @@ export class OpenTimeSeries {
     const vals = ffill(this.getTsdfValues());
     const rets = pctChange(vals);
     rets[0] = 0;
-    this.tsdf = this.getTsdfDates().map((d, i) => ({ date: d, value: rets[i] }));
+    this.tsdf = this.getTsdfDates().map((d, i) => ({
+      date: d,
+      value: rets[i],
+    }));
     this.valuetype = ValueType.RTRN;
     return this;
   }
@@ -236,10 +265,16 @@ export class OpenTimeSeries {
       rets = [...this.getTsdfValues()];
       rets[0] = 0;
     }
-    const cum = cumProd(rets.map((r) => 1 + r), 1);
+    const cum = cumProd(
+      rets.map((r) => 1 + r),
+      1,
+    );
     const base = cum[0];
     const normalized = cum.map((c) => c / base);
-    this.tsdf = this.getTsdfDates().map((d, i) => ({ date: d, value: normalized[i] }));
+    this.tsdf = this.getTsdfDates().map((d, i) => ({
+      date: d,
+      value: normalized[i],
+    }));
     this.valuetype = ValueType.PRICE;
     return this;
   }
@@ -250,7 +285,9 @@ export class OpenTimeSeries {
     const first = values[0];
     const last = values[values.length - 1];
     if (first <= 0 || last <= 0)
-      throw new InitialValueZeroError("Geometric return cannot be calculated due to zero or negative value");
+      throw new InitialValueZeroError(
+        "Geometric return cannot be calculated due to zero or negative value",
+      );
     const fraction = daysBetween(dates[0], dates[dates.length - 1]) / 365.25;
     return (last / first) ** (1 / fraction) - 1;
   }
@@ -258,7 +295,8 @@ export class OpenTimeSeries {
   arithmeticRet(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const tf = this.calcTimeFactor(dates, values, opts.periodsInYearFixed);
     return mean(vals) * tf;
@@ -270,14 +308,17 @@ export class OpenTimeSeries {
     const first = values[0];
     const last = values[values.length - 1];
     if (first === 0)
-      throw new InitialValueZeroError("Simple return cannot be calculated due to initial value zero");
+      throw new InitialValueZeroError(
+        "Simple return cannot be calculated due to initial value zero",
+      );
     return last / first - 1;
   }
 
   vol(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1);
     const tf = this.calcTimeFactor(dates, values, opts.periodsInYearFixed);
@@ -321,7 +362,8 @@ export class OpenTimeSeries {
   varDown(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1).filter((r) => !Number.isNaN(r));
     return quantile(rets, 1 - level);
@@ -330,9 +372,13 @@ export class OpenTimeSeries {
   cvarDown(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
-    const rets = vals.slice(1).filter((r) => !Number.isNaN(r)).sort((a, b) => a - b);
+    const rets = vals
+      .slice(1)
+      .filter((r) => !Number.isNaN(r))
+      .sort((a, b) => a - b);
     const n = Math.ceil((1 - level) * rets.length);
     if (n === 0) return rets[0] ?? NaN;
     return mean(rets.slice(0, n));
@@ -341,7 +387,8 @@ export class OpenTimeSeries {
   downsideDeviation(opts: DateRangeOptions = {}, mar = 0): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const tf = this.calcTimeFactor(dates, values, opts.periodsInYearFixed);
     const perPeriodMar = mar / tf;
@@ -369,7 +416,8 @@ export class OpenTimeSeries {
   positiveShare(opts: DateRangeOptions = {}): number {
     const { values } = this.sliceByRange(opts);
     if (values.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1).filter((r) => !Number.isNaN(r));
     const pos = rets.filter((r) => r > 0).length;
@@ -379,7 +427,8 @@ export class OpenTimeSeries {
   worst(observations = 1, opts: DateRangeOptions = {}): number {
     const { values } = this.sliceByRange(opts);
     if (values.length < observations + 1) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     let minVal = 0;
     for (let i = observations; i < vals.length; i++) {
@@ -393,7 +442,8 @@ export class OpenTimeSeries {
   skew(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 3) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1).filter((r) => !Number.isNaN(r));
     return skewness(rets);
@@ -402,7 +452,8 @@ export class OpenTimeSeries {
   kurtosis(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 4) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1).filter((r) => !Number.isNaN(r));
     return kurtosis(rets);
@@ -411,7 +462,8 @@ export class OpenTimeSeries {
   zScore(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1).filter((r) => !Number.isNaN(r));
     const m = mean(rets);
@@ -422,7 +474,8 @@ export class OpenTimeSeries {
   volFromVar(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
-    const vals = this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
+    const vals =
+      this.valuetype === ValueType.RTRN ? values : pctChange(ffill(values));
     vals[0] = 0;
     const rets = vals.slice(1).filter((r) => !Number.isNaN(r));
     const tf = this.calcTimeFactor(dates, values, opts.periodsInYearFixed);
@@ -440,15 +493,12 @@ export class OpenTimeSeries {
     const tf = this.calcTimeFactor(dates, values, opts.periodsInYearFixed);
     const logRet = logReturns(values);
     const chunk = logRet.slice(1, dayChunk);
-    const initVol =
-      std(chunk, 0) * Math.sqrt(tf);
+    const initVol = std(chunk, 0) * Math.sqrt(tf);
     const result: number[] = [initVol];
     for (let i = dayChunk; i < logRet.length; i++) {
       const r = logRet[i];
       const prev = result[result.length - 1];
-      result.push(
-        Math.sqrt(r * r * tf * (1 - lmbda) + prev * prev * lmbda),
-      );
+      result.push(Math.sqrt(r * r * tf * (1 - lmbda) + prev * prev * lmbda));
     }
     return result;
   }
@@ -531,13 +581,18 @@ export class OpenTimeSeries {
   }
 
   toDrawdownSeries(): this {
-    const vals = this.getTsdfValues().map((v) => (Number.isNaN(v) ? -Infinity : v));
+    const vals = this.getTsdfValues().map((v) =>
+      Number.isNaN(v) ? -Infinity : v,
+    );
     let peak = vals[0];
     const drawdown = vals.map((v) => {
       peak = Math.max(peak, v);
       return v / peak - 1;
     });
-    this.tsdf = this.getTsdfDates().map((d, i) => ({ date: d, value: drawdown[i] }));
+    this.tsdf = this.getTsdfDates().map((d, i) => ({
+      date: d,
+      value: drawdown[i],
+    }));
     return this;
   }
 }
@@ -552,9 +607,10 @@ export function timeseriesChain(
 ): OpenTimeSeries {
   const old = front.fromDeepcopy();
   if (oldFee !== 0) {
-    const vals = old.valuetype === ValueType.RTRN
-      ? old.getTsdfValues()
-      : pctChange(ffill(old.getTsdfValues()));
+    const vals =
+      old.valuetype === ValueType.RTRN
+        ? old.getTsdfValues()
+        : pctChange(ffill(old.getTsdfValues()));
     vals[0] = 0;
     const daysInYear = 365;
     const dates = old.getTsdfDates();
@@ -562,7 +618,9 @@ export function timeseriesChain(
     for (let i = 1; i < dates.length; i++) {
       dateDiffs.push(daysBetween(dates[i - 1], dates[i]));
     }
-    const adj = vals.slice(1).map((r, i) => 1 + r + oldFee * (dateDiffs[i] ?? 0) / daysInYear);
+    const adj = vals
+      .slice(1)
+      .map((r, i) => 1 + r + (oldFee * (dateDiffs[i] ?? 0)) / daysInYear);
     const cum = cumProd(adj, 1);
     old.tsdf = dates.map((d, i) => ({
       date: d,
@@ -581,8 +639,13 @@ export function timeseriesChain(
   while (firstIdx < newDates.length && !oldDateSet.has(newDates[firstIdx])) {
     firstIdx++;
   }
-  if (firstIdx >= newDates.length || parseDate(newDates[firstIdx]) > parseDate(oldDates[oldDates.length - 1]))
-    throw new DateAlignmentError("Timeseries dates must overlap to allow chaining");
+  if (
+    firstIdx >= newDates.length ||
+    parseDate(newDates[firstIdx]) > parseDate(oldDates[oldDates.length - 1])
+  )
+    throw new DateAlignmentError(
+      "Timeseries dates must overlap to allow chaining",
+    );
 
   const first = newDates[firstIdx];
   const oldDateToVal = new Map<string, number>();

@@ -20,7 +20,9 @@ function isWeekend(dateStr: string): boolean {
   return day === 0 || day === 6;
 }
 
-function createHolidayCheckers(countries: CountryCode | CountryCode[]): ((d: string) => boolean)[] {
+function createHolidayCheckers(
+  countries: CountryCode | CountryCode[],
+): ((d: string) => boolean)[] {
   const codes = Array.isArray(countries) ? countries : [countries];
   return codes.map((c) => {
     const hd = new Holidays(c);
@@ -31,7 +33,10 @@ function createHolidayCheckers(countries: CountryCode | CountryCode[]): ((d: str
   });
 }
 
-function isHoliday(dateStr: string, checkers: ((d: string) => boolean)[]): boolean {
+function isHoliday(
+  dateStr: string,
+  checkers: ((d: string) => boolean)[],
+): boolean {
   return checkers.some((check) => check(dateStr));
 }
 
@@ -67,7 +72,10 @@ export function filterBusinessDays(
 /**
  * Checks whether a date is a business day.
  */
-export function isBusinessDay(dateStr: string, countries: CountryCode | CountryCode[]): boolean {
+export function isBusinessDay(
+  dateStr: string,
+  countries: CountryCode | CountryCode[],
+): boolean {
   if (isWeekend(dateStr)) return false;
   const checkers = createHolidayCheckers(countries);
   return !isHoliday(dateStr, checkers);
@@ -118,9 +126,7 @@ function getWeekKey(dateStr: string): string {
   const d = parseDate(dateStr);
   const startOfYear = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-  const weekNum = Math.floor(
-    (d.getTime() - startOfYear.getTime()) / msPerWeek,
-  );
+  const weekNum = Math.floor((d.getTime() - startOfYear.getTime()) / msPerWeek);
   return `${d.getUTCFullYear()}-W${weekNum}`;
 }
 
@@ -185,7 +191,8 @@ export function filterToBusinessDays(
   const checkers = createHolidayCheckers(countries);
   const indices: number[] = [];
   for (let i = 0; i < dates.length; i++) {
-    if (!isWeekend(dates[i]!) && !isHoliday(dates[i]!, checkers)) indices.push(i);
+    if (!isWeekend(dates[i]!) && !isHoliday(dates[i]!, checkers))
+      indices.push(i);
   }
   return {
     dates: indices.map((i) => dates[i]!),

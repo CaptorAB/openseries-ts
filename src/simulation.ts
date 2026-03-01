@@ -102,8 +102,7 @@ export class ReturnSimulation {
     for (let i = 1; i < res.length; i++) {
       rets.push((res[i] - res[i - 1]) / res[i - 1]);
     }
-    const mean =
-      rets.reduce((a, b) => a + b, 0) / rets.length;
+    const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
     const variance =
       rets.reduce((s, r) => s + (r - mean) ** 2, 0) / (rets.length - 1);
     return Math.sqrt(variance * this.tradingDaysInYear);
@@ -228,7 +227,8 @@ export class ReturnSimulation {
       for (let j = 0; j < trading_days; j++) {
         const wiener = sigmaDaily * normalRng();
         const nJumps = samplePoisson(lamdaDaily, uniformRng);
-        const jumpNormal = nJumps === 0 ? 0 : jumps_mu + jumps_sigma * normalRng();
+        const jumpNormal =
+          nJumps === 0 ? 0 : jumps_mu + jumps_sigma * normalRng();
         const poissonJumps = nJumps * jumpNormal;
         row.push(drift + wiener + poissonJumps);
       }

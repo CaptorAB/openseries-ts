@@ -12,7 +12,11 @@ vi.mock("open", () => ({
 
 describe("sharpeplotHtml", () => {
   it("returns valid HTML with chart elements", () => {
-    const frame = simulatedFrame({ meanRet: 0.07, meanVol: 0.15, process: "normal" });
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
     const current = frame.makePortfolio("Current Portfolio", "eq_weights");
     const ef = efficientFrontier(frame, 500, 71, 20);
     const plotframe = preparePlotData(frame, current, ef.maxSharpe);
@@ -60,7 +64,7 @@ describe("sharpeplotHtml", () => {
       title: "",
       addLogo: false,
     });
-    expect(html).toContain('<div></div>');
+    expect(html).toContain("<div></div>");
   });
 
   it("includes assetLabels in script when provided", () => {
@@ -81,8 +85,13 @@ describe("sharpeplotHtml", () => {
     const current = frame.makePortfolio("Current Portfolio", "eq_weights");
     const ef = efficientFrontier(frame, 100, 71, 10);
     const plotframe = preparePlotData(frame, current, ef.maxSharpe);
-    const simulatedWithNan = [...ef.simulated, { stdev: 0.1, ret: 0.05, sharpe: NaN, weights: [0.5, 0.5] }];
-    const html = sharpeplotHtml(simulatedWithNan, ef.frontier, plotframe, { addLogo: false });
+    const simulatedWithNan = [
+      ...ef.simulated,
+      { stdev: 0.1, ret: 0.05, sharpe: NaN, weights: [0.5, 0.5] },
+    ];
+    const html = sharpeplotHtml(simulatedWithNan, ef.frontier, plotframe, {
+      addLogo: false,
+    });
     expect(html).toMatch(/<!DOCTYPE html>/i);
     expect(html).toContain("sharpeChart");
   });

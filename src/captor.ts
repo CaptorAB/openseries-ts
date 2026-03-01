@@ -21,7 +21,9 @@ export type CaptorSeriesResponse = {
  * @param id - The timeseries ID (e.g. "638f681e0c2f4c8d28a13392")
  * @returns The timeseries data with dates and values arrays
  */
-export async function fetchCaptorSeries(id: string): Promise<CaptorSeriesResponse> {
+export async function fetchCaptorSeries(
+  id: string,
+): Promise<CaptorSeriesResponse> {
   const url = `${API_BASE}/${id}`;
   const res = await fetch(url);
   if (!res.ok) {

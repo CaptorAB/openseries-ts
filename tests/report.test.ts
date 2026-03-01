@@ -1,11 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { reportHtml, computeCaptureRatioCagr, computeAnnualReturns } from "../src/report";
+import {
+  reportHtml,
+  computeCaptureRatioCagr,
+  computeAnnualReturns,
+} from "../src/report";
 import { OpenFrame } from "../src/frame";
 import { OpenTimeSeries } from "../src/series";
 
 /** Creates a minimal frame with positive price-like values for report tests. */
 function frameForReport(numSeries = 2): OpenFrame {
-  const dates = ["2020-01-01", "2020-01-02", "2020-01-03", "2020-06-01", "2020-12-31"];
+  const dates = [
+    "2020-01-01",
+    "2020-01-02",
+    "2020-01-03",
+    "2020-06-01",
+    "2020-12-31",
+  ];
   const series = Array.from({ length: numSeries }, (_, i) =>
     OpenTimeSeries.fromArrays(
       `Asset ${i}`,
@@ -99,7 +109,11 @@ describe("reportHtml", () => {
     });
 
     it("throws when frame has 1 constituent", () => {
-      const s = OpenTimeSeries.fromArrays("Single", ["2020-01-01", "2020-01-02"], [100, 101]);
+      const s = OpenTimeSeries.fromArrays(
+        "Single",
+        ["2020-01-01", "2020-01-02"],
+        [100, 101],
+      );
       const frame = new OpenFrame([s], null, { countries: ["SE"] });
       frame.mergeSeries("inner");
       expect(() => reportHtml(frame)).toThrow(
@@ -125,9 +139,19 @@ describe("reportHtml", () => {
 
   it("computes capture ratio and worst month with multi-month business-day data", () => {
     const dates = [
-      "2020-01-02", "2020-01-03", "2020-02-03", "2020-03-02", "2020-04-01",
-      "2020-05-04", "2020-06-01", "2020-07-01", "2020-08-03", "2020-09-01",
-      "2020-10-01", "2020-11-02", "2020-12-01",
+      "2020-01-02",
+      "2020-01-03",
+      "2020-02-03",
+      "2020-03-02",
+      "2020-04-01",
+      "2020-05-04",
+      "2020-06-01",
+      "2020-07-01",
+      "2020-08-03",
+      "2020-09-01",
+      "2020-10-01",
+      "2020-11-02",
+      "2020-12-01",
     ];
     const s1 = OpenTimeSeries.fromArrays(
       "Asset A",
@@ -198,9 +222,18 @@ describe("reportHtml", () => {
 
   it("handles capture ratio edge case when benchmark has no down months", () => {
     const dates = [
-      "2020-01-02", "2020-02-03", "2020-03-02", "2020-04-01", "2020-05-04",
-      "2020-06-01", "2020-07-01", "2020-08-03", "2020-09-01", "2020-10-01",
-      "2020-11-02", "2020-12-01",
+      "2020-01-02",
+      "2020-02-03",
+      "2020-03-02",
+      "2020-04-01",
+      "2020-05-04",
+      "2020-06-01",
+      "2020-07-01",
+      "2020-08-03",
+      "2020-09-01",
+      "2020-10-01",
+      "2020-11-02",
+      "2020-12-01",
     ];
     const s1 = OpenTimeSeries.fromArrays(
       "Asset",

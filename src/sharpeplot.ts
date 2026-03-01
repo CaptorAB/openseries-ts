@@ -8,7 +8,10 @@ import { writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import open from "open";
-import type { SimulatedPortfolio, EfficientFrontierPoint } from "./portfoliotools";
+import type {
+  SimulatedPortfolio,
+  EfficientFrontierPoint,
+} from "./portfoliotools";
 import type { SharpePlotPoint } from "./portfoliotools";
 
 const DEFAULT_LOGO_URL =
@@ -51,9 +54,7 @@ export function sharpeplotHtml(
 ): string {
   const title = options.title ?? "";
   const logoUrl =
-    options.addLogo !== false
-      ? (options.logoUrl ?? DEFAULT_LOGO_URL)
-      : "";
+    options.addLogo !== false ? (options.logoUrl ?? DEFAULT_LOGO_URL) : "";
 
   const sharpes = simulated.map((s) => s.sharpe).filter(Number.isFinite);
   const minS = sharpes.length > 0 ? Math.min(...sharpes) : 0;
@@ -90,12 +91,10 @@ export function sharpeplotHtml(
 
   const logoEl = logoUrl
     ? `<div class="plot-header-logo"><img src="${logoUrl}" alt="Logo" /></div>`
-    : '<div></div>';
+    : "<div></div>";
 
   const titleEl =
-    title !== ""
-      ? `<h1 class="plot-title">${title}</h1>`
-      : '<div></div>';
+    title !== "" ? `<h1 class="plot-title">${title}</h1>` : "<div></div>";
 
   return `<!DOCTYPE html>
 <html lang="en">

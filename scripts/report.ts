@@ -91,8 +91,7 @@ function parseArgs(args: string[]): {
       toDate = args[i + 1]!;
       i++;
     } else if (a === "--countries" && args[i + 1]) {
-      countries = args[i + 1]!
-        .split(",")
+      countries = args[i + 1]!.split(",")
         .map((c) => c.trim().toUpperCase() as CountryCode)
         .filter(Boolean);
       i++;
@@ -119,7 +118,13 @@ function parseArgs(args: string[]): {
     }
   }
 
-  const preset = useIris ? IRIS_SERIES : useCaptor ? DEFAULT_SERIES : ids.length > 0 ? null : IRIS_SERIES;
+  const preset = useIris
+    ? IRIS_SERIES
+    : useCaptor
+      ? DEFAULT_SERIES
+      : ids.length > 0
+        ? null
+        : IRIS_SERIES;
   const finalIds = preset ? preset.map((s) => s.id) : ids;
   const presetNames = preset ? preset.map((s) => s.name) : undefined;
   const effectiveUseIris = preset === IRIS_SERIES;
@@ -166,9 +171,7 @@ async function main(): Promise<void> {
       endCut: opts.toDate,
       where: "both",
     });
-    console.log(
-      `Truncated to ${frame.firstIdx} .. ${frame.lastIdx}`,
-    );
+    console.log(`Truncated to ${frame.firstIdx} .. ${frame.lastIdx}`);
   }
 
   const html = reportHtml(frame, {
@@ -185,12 +188,11 @@ async function main(): Promise<void> {
     : opts.isDefaultCaptor
       ? "captor_report.html"
       : "report.html";
-  const reportPath =
-    opts.filename
-      ? opts.filename.includes("/") || opts.filename.includes("\\")
-        ? opts.filename
-        : join(defaultDir, opts.filename)
-      : join(defaultDir, defaultFilename);
+  const reportPath = opts.filename
+    ? opts.filename.includes("/") || opts.filename.includes("\\")
+      ? opts.filename
+      : join(defaultDir, opts.filename)
+    : join(defaultDir, defaultFilename);
 
   writeFileSync(reportPath, html, "utf-8");
 

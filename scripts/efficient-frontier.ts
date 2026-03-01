@@ -78,8 +78,7 @@ function parseArgs(args: string[]): {
       seed = parseInt(args[i + 1]!, 10);
       i++;
     } else if (a === "--countries" && args[i + 1]) {
-      countries = args[i + 1]!
-        .split(",")
+      countries = args[i + 1]!.split(",")
         .map((c) => c.trim().toUpperCase() as CountryCode)
         .filter(Boolean);
       i++;

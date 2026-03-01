@@ -53,11 +53,7 @@ export {
 } from "./types";
 export { mean, std, quantile, pctChange } from "./utils";
 export { reportHtml, type ReportOptions } from "./report";
-export {
-  plotSeriesHtml,
-  plotSeries,
-  type PlotSeriesOptions,
-} from "./plot";
+export { plotSeriesHtml, plotSeries, type PlotSeriesOptions } from "./plot";
 export {
   sharpeplotHtml,
   sharpeplot,

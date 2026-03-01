@@ -1,7 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { OpenTimeSeries, timeseriesChain } from "../src/series";
 import { ValueType } from "../src/types";
-import { DateAlignmentError, InitialValueZeroError, ResampleDataLossError } from "../src/types";
+import {
+  DateAlignmentError,
+  InitialValueZeroError,
+  ResampleDataLossError,
+} from "../src/types";
 import { simulatedSeries } from "./fixtures";
 import { ReturnSimulation } from "../src/simulation";
 import { cumProd } from "../src/utils";
@@ -108,7 +112,10 @@ describe("OpenTimeSeries", () => {
 
   it("arithmeticRet with fromDate and toDate", () => {
     const s = simulatedSeries("Test");
-    const ret = s.arithmeticRet({ fromDate: "2020-06-01", toDate: "2020-09-01" });
+    const ret = s.arithmeticRet({
+      fromDate: "2020-06-01",
+      toDate: "2020-09-01",
+    });
     expect(typeof ret).toBe("number");
   });
 
@@ -119,20 +126,35 @@ describe("OpenTimeSeries", () => {
   });
 
   it("computes value return", () => {
-    const series = OpenTimeSeries.fromArrays("Test", ["2020-01-01", "2020-01-02"], [100, 110]);
+    const series = OpenTimeSeries.fromArrays(
+      "Test",
+      ["2020-01-01", "2020-01-02"],
+      [100, 110],
+    );
     expect(series.valueRet()).toBeCloseTo(0.1);
   });
 
   it("valueRet returns NaN when slice has fewer than 2 values", () => {
-    const series = OpenTimeSeries.fromArrays("Test", ["2020-01-01", "2020-01-02"], [100, 110]);
-    const ret = series.valueRet({ fromDate: "2020-01-02", toDate: "2020-01-02" });
+    const series = OpenTimeSeries.fromArrays(
+      "Test",
+      ["2020-01-01", "2020-01-02"],
+      [100, 110],
+    );
+    const ret = series.valueRet({
+      fromDate: "2020-01-02",
+      toDate: "2020-01-02",
+    });
     expect(ret).toBeNaN();
   });
 
   it("converts to returns and back", () => {
     const dates = ["2020-01-01", "2020-01-02", "2020-01-03"];
     const values = [100, 105, 102];
-    const series = OpenTimeSeries.fromArrays("Test", dates, values).fromDeepcopy();
+    const series = OpenTimeSeries.fromArrays(
+      "Test",
+      dates,
+      values,
+    ).fromDeepcopy();
     series.valueToRet();
     expect(series.valuetype).toBe(ValueType.RTRN);
     series.toCumret();
@@ -206,8 +228,12 @@ describe("OpenTimeSeries", () => {
         [100, 80, 90, 70],
       );
       expect(s.maxDrawdownBottomDate()).toBe("2020-01-06");
-      expect(s.maxDrawdownBottomDate({ toDate: "2020-01-03" })).toBe("2020-01-02");
-      expect(s.maxDrawdownBottomDate({ fromDate: "2020-01-03" })).toBe("2020-01-06");
+      expect(s.maxDrawdownBottomDate({ toDate: "2020-01-03" })).toBe(
+        "2020-01-02",
+      );
+      expect(s.maxDrawdownBottomDate({ fromDate: "2020-01-03" })).toBe(
+        "2020-01-06",
+      );
     });
 
     it("maxDrawdownBottomDate returns last date when bottom is at end", () => {
@@ -376,7 +402,11 @@ describe("OpenTimeSeries", () => {
     });
 
     it("worstMonth returns NaN for short series", () => {
-      const s = OpenTimeSeries.fromArrays("Short", ["2020-01-01", "2020-01-02"], [100, 101]);
+      const s = OpenTimeSeries.fromArrays(
+        "Short",
+        ["2020-01-01", "2020-01-02"],
+        [100, 101],
+      );
       expect(s.worstMonth()).toBeNaN();
     });
   });
@@ -453,9 +483,15 @@ describe("timeseriesChain", () => {
     const backDates = dc.dates.slice(50, 150);
     const frontRets = dc.columns[0].values.slice(0, 100);
     const backRets = dc.columns[0].values.slice(50, 150);
-    const frontCum = cumProd(frontRets.map((r) => 1 + r), 1);
+    const frontCum = cumProd(
+      frontRets.map((r) => 1 + r),
+      1,
+    );
     const frontNorm = frontCum.map((c) => c / frontCum[0]);
-    const backCum = cumProd(backRets.map((r) => 1 + r), 1);
+    const backCum = cumProd(
+      backRets.map((r) => 1 + r),
+      1,
+    );
     const backNorm = backCum.map((c) => c / backCum[0]);
     const frontSer = OpenTimeSeries.fromArrays("F", frontDates, frontNorm, {
       valuetype: ValueType.PRICE,
@@ -466,6 +502,8 @@ describe("timeseriesChain", () => {
     const chained = timeseriesChain(frontSer, backSer);
     expect(chained.length).toBe(150);
     expect(to9(chained.getTsdfValues()[0])).toBe("0.967447780");
-    expect(to9(chained.getTsdfValues()[chained.length - 1])).toBe("1.108997972");
+    expect(to9(chained.getTsdfValues()[chained.length - 1])).toBe(
+      "1.108997972",
+    );
   });
 });

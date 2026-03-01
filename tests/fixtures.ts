@@ -51,16 +51,43 @@ export function simulatedFrame(opts?: {
 
   let sim: ReturnSimulation;
   if (process === "normal") {
-    sim = ReturnSimulation.fromNormal(numAssets, meanRet, meanVol, days, 252, seed);
+    sim = ReturnSimulation.fromNormal(
+      numAssets,
+      meanRet,
+      meanVol,
+      days,
+      252,
+      seed,
+    );
   } else if (process === "lognormal") {
-    sim = ReturnSimulation.fromLognormal(numAssets, meanRet, meanVol, days, 252, seed);
+    sim = ReturnSimulation.fromLognormal(
+      numAssets,
+      meanRet,
+      meanVol,
+      days,
+      252,
+      seed,
+    );
   } else {
-    sim = ReturnSimulation.fromGbm(numAssets, meanRet, meanVol, days, 252, seed);
+    sim = ReturnSimulation.fromGbm(
+      numAssets,
+      meanRet,
+      meanVol,
+      days,
+      252,
+      seed,
+    );
   }
   const dc = sim.toDateColumns("Asset", { end: "2020-12-31" });
   const base = Array.from({ length: numAssets }, (_, i) =>
-    OpenTimeSeries.fromDateColumns(dc, { columnIndex: i, valuetype: ValueType.RTRN }),
+    OpenTimeSeries.fromDateColumns(dc, {
+      columnIndex: i,
+      valuetype: ValueType.RTRN,
+    }),
   );
   const constituents = opts?.asReturns ? base : base.map((s) => s.toCumret());
-  return new OpenFrame(constituents, [1 / numAssets, 1 / numAssets, 1 / numAssets].slice(0, numAssets));
+  return new OpenFrame(
+    constituents,
+    [1 / numAssets, 1 / numAssets, 1 / numAssets].slice(0, numAssets),
+  );
 }

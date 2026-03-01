@@ -193,9 +193,10 @@ export function efficientFrontier(
   frontier.length = 0;
   frontier.push(...efficient);
 
-  const maxSharpeIdx = frontier.reduce<number>((best, p, i) =>
-    p.sharpe > frontier[best].sharpe ? i : best,
-  0);
+  const maxSharpeIdx = frontier.reduce<number>(
+    (best, p, i) => (p.sharpe > frontier[best].sharpe ? i : best),
+    0,
+  );
   return {
     frontier,
     simulated,
@@ -264,7 +265,9 @@ function solveEfficientWeights(
   const lambda1 = (C * targetRet - A) / det;
   const lambda2 = (B - A * targetRet) / det;
   const ones = new Array(n).fill(1);
-  const linearCombo = meanRets.map((mu, i) => lambda1 * mu + lambda2 * ones[i]!);
+  const linearCombo = meanRets.map(
+    (mu, i) => lambda1 * mu + lambda2 * ones[i]!,
+  );
   const w = matVec(invCov, linearCombo);
   const sum = w.reduce((a, b) => a + b, 0);
   if (Math.abs(sum) < 1e-12) return null;
@@ -298,12 +301,18 @@ export function preparePlotData(
     if (r.length < 2) continue;
     const m = mean(r) * tf;
     const v = std(r, 1) * Math.sqrt(tf);
-    points.push({ stdev: v, ret: m, label: assets.columnLabels[i] ?? `Asset ${i}` });
+    points.push({
+      stdev: v,
+      ret: m,
+      label: assets.columnLabels[i] ?? `Asset ${i}`,
+    });
   }
 
   const currRets = pctChange(ffill(currentPortfolio.values));
   currRets[0] = 0;
-  const validCurr = currRets.slice(1).filter((x) => !Number.isNaN(x) && Number.isFinite(x));
+  const validCurr = currRets
+    .slice(1)
+    .filter((x) => !Number.isNaN(x) && Number.isFinite(x));
   if (validCurr.length >= 2) {
     const m = mean(validCurr) * tf;
     const v = std(validCurr, 1) * Math.sqrt(tf);

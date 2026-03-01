@@ -52,10 +52,7 @@ export function generateCalendarDateRange(
 }
 
 /** Offsets a date by a number of business days. */
-export function offsetBusinessDays(
-  ddate: Date,
-  days: number,
-): Date {
+export function offsetBusinessDays(ddate: Date, days: number): Date {
   const result = new Date(ddate);
   let remaining = Math.abs(days);
   const step = days >= 0 ? 1 : -1;
