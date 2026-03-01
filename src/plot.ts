@@ -25,6 +25,8 @@ export interface PlotSeriesOptions {
   filename?: string;
   /** If true, open the HTML file in the default browser. Default: true. */
   autoOpen?: boolean;
+  /** If true, data is drawdown series (0 to negative decimals). Plot raw values * 100 as %, skip cumulative conversion. */
+  asDrawdown?: boolean;
 }
 
 const DEFAULT_TITLE = "Series Plot";
@@ -63,7 +65,7 @@ function toCumulativeReturns(
     const vals = ffill(s.values);
     const rets = pctChange(vals);
     rets[0] = 0;
-    const cum = [100];
+    const cum = [1];
     for (let i = 1; i < rets.length; i++) {
       cum.push((cum[i - 1] ?? 0) * (1 + rets[i]!));
     }
@@ -84,7 +86,7 @@ const COLORWAY = [
 
 /**
  * Generate full-page HTML with a line chart of the series (or multiple series).
- * Plots cumulative returns (100 base) like Python plot_series.
+ * Plots cumulative returns (base 1). Percent display is formatting only.
  * Works with OpenTimeSeries or OpenFrame. For OpenFrame, use mergeSeries("inner") first.
  *
  * @param seriesOrFrame - OpenTimeSeries or OpenFrame
@@ -101,7 +103,14 @@ export function plotSeriesHtml(
       ? (options.logoUrl ?? DEFAULT_LOGO_URL)
       : "";
   const rawData = seriesToPlotData(seriesOrFrame);
-  const cumData = toCumulativeReturns(rawData);
+  const asDrawdown = options.asDrawdown ?? false;
+  const cumData = asDrawdown
+    ? rawData.map((s) => ({
+        name: s.name,
+        dates: s.dates,
+        values: s.values.map((v) => (Number.isNaN(v) ? v : v * 100)),
+      }))
+    : toCumulativeReturns(rawData);
   const chartColors = cumData.map((_, i) => COLORWAY[i % COLORWAY.length]);
 
   const logoEl = logoUrl
@@ -202,6 +211,7 @@ export function plotSeriesHtml(
   <script>
     const cumData = ${JSON.stringify(cumData)};
     const chartColors = ${JSON.stringify(chartColors)};
+    const asDrawdown = ${JSON.stringify(asDrawdown)};
 
     Chart.defaults.font.family = "'Poppins', sans-serif";
     const ctx = document.getElementById('plotChart').getContext('2d');
@@ -225,7 +235,7 @@ export function plotSeriesHtml(
           y: {
             beginAtZero: false,
             grid: { color: '#EEEEEE' },
-            ticks: { callback: v => v + '%' },
+            ticks: { callback: v => asDrawdown ? (v + '%') : ((v * 100).toFixed(1) + '%') },
           },
           x: {
             type: 'time',

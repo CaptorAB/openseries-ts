@@ -32,6 +32,7 @@
     "plot": "tsx scripts/plot.ts",
     "plot:iris": "tsx scripts/plot.ts --iris",
     "plot:captor": "tsx scripts/plot.ts",
+    "plot:drawdown": "tsx scripts/plot.ts --drawdown",
     "efficient-frontier": "tsx scripts/efficient-frontier.ts",
     "compare-metrics": "tsx scripts/compare-metrics.ts"
   },

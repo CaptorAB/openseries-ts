@@ -247,7 +247,7 @@ function main(): void {
 
   const header =
     "Metric".padEnd(col1) +
-    "Python (data.json)".padEnd(col2) +
+    "Python (openseries)".padEnd(col2) +
     "TypeScript (openseries-ts)".padEnd(col3) +
     "Match".padEnd(col4);
   rows.push(header);

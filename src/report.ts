@@ -212,7 +212,7 @@ function generateHtml(
     const vals = ffill(s.values);
     const rets = pctChange(vals);
     rets[0] = 0;
-    const cum = [100];
+    const cum = [1];
     for (let i = 1; i < rets.length; i++) {
       cum.push((cum[i - 1] ?? 0) * (1 + rets[i]!));
     }
@@ -342,7 +342,7 @@ function generateHtml(
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { beginAtZero: false, grid: { color: '#EEEEEE' }, ticks: { callback: v => v + '%' } },
+          y: { beginAtZero: false, grid: { color: '#EEEEEE' }, ticks: { callback: v => (v * 100).toFixed(1) + '%' } },
           x: {
             type: 'time',
             grid: { color: '#EEEEEE' },

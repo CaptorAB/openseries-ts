@@ -91,6 +91,29 @@ describe("plotSeriesHtml", () => {
     const html = plotSeriesHtml(series, { addLogo: false });
     expect(html).not.toContain("captor_logo");
   });
+
+  it("plots drawdown series when asDrawdown is true", () => {
+    const series = OpenTimeSeries.fromArrays(
+      "Drawdown",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [0, -0.02, -0.05],
+    );
+    const html = plotSeriesHtml(series, { asDrawdown: true });
+    expect(html).toMatch(/<!DOCTYPE html>/i);
+    expect(html).toContain("Drawdown");
+    expect(html).toContain("asDrawdown = true");
+  });
+
+  it("preserves NaN in drawdown series when asDrawdown is true", () => {
+    const series = OpenTimeSeries.fromArrays(
+      "WithNaN",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [0, Number.NaN, -0.05],
+    );
+    const html = plotSeriesHtml(series, { asDrawdown: true });
+    expect(html).toContain("WithNaN");
+    expect(html).toContain("asDrawdown = true");
+  });
 });
 
 describe("plotSeries", () => {

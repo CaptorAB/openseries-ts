@@ -494,10 +494,12 @@ interface PlotSeriesOptions {
     filename?: string;
     /** If true, open the HTML file in the default browser. Default: true. */
     autoOpen?: boolean;
+    /** If true, data is drawdown series (0 to negative decimals). Plot raw values * 100 as %, skip cumulative conversion. */
+    asDrawdown?: boolean;
 }
 /**
  * Generate full-page HTML with a line chart of the series (or multiple series).
- * Plots cumulative returns (100 base) like Python plot_series.
+ * Plots cumulative returns (base 1). Percent display is formatting only.
  * Works with OpenTimeSeries or OpenFrame. For OpenFrame, use mergeSeries("inner") first.
  *
  * @param seriesOrFrame - OpenTimeSeries or OpenFrame

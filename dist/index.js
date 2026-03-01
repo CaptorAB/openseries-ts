@@ -1948,7 +1948,7 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
     const vals = ffill(s.values);
     const rets = pctChange(vals);
     rets[0] = 0;
-    const cum = [100];
+    const cum = [1];
     for (let i = 1; i < rets.length; i++) {
       cum.push((cum[i - 1] ?? 0) * (1 + rets[i]));
     }
@@ -2068,7 +2068,7 @@ function generateHtml(seriesData, reportTitle, stats, logoUrl) {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { beginAtZero: false, grid: { color: '#EEEEEE' }, ticks: { callback: v => v + '%' } },
+          y: { beginAtZero: false, grid: { color: '#EEEEEE' }, ticks: { callback: v => (v * 100).toFixed(1) + '%' } },
           x: {
             type: 'time',
             grid: { color: '#EEEEEE' },
@@ -2162,7 +2162,7 @@ function toCumulativeReturns(data) {
     const vals = ffill(s.values);
     const rets = pctChange(vals);
     rets[0] = 0;
-    const cum = [100];
+    const cum = [1];
     for (let i = 1; i < rets.length; i++) {
       cum.push((cum[i - 1] ?? 0) * (1 + rets[i]));
     }
@@ -2183,7 +2183,12 @@ function plotSeriesHtml(seriesOrFrame, options = {}) {
   const title = options.title ?? DEFAULT_TITLE;
   const logoUrl = options.addLogo !== false ? options.logoUrl ?? DEFAULT_LOGO_URL2 : "";
   const rawData = seriesToPlotData(seriesOrFrame);
-  const cumData = toCumulativeReturns(rawData);
+  const asDrawdown = options.asDrawdown ?? false;
+  const cumData = asDrawdown ? rawData.map((s) => ({
+    name: s.name,
+    dates: s.dates,
+    values: s.values.map((v) => Number.isNaN(v) ? v : v * 100)
+  })) : toCumulativeReturns(rawData);
   const chartColors = cumData.map((_, i) => COLORWAY[i % COLORWAY.length]);
   const logoEl = logoUrl ? `<div class="plot-header-logo"><img src="${logoUrl}" alt="Logo" /></div>` : "<div></div>";
   const titleEl = title !== "" ? `<h1 class="plot-title">${title}</h1>` : "<div></div>";
@@ -2276,6 +2281,7 @@ function plotSeriesHtml(seriesOrFrame, options = {}) {
   <script>
     const cumData = ${JSON.stringify(cumData)};
     const chartColors = ${JSON.stringify(chartColors)};
+    const asDrawdown = ${JSON.stringify(asDrawdown)};
 
     Chart.defaults.font.family = "'Poppins', sans-serif";
     const ctx = document.getElementById('plotChart').getContext('2d');
@@ -2299,7 +2305,7 @@ function plotSeriesHtml(seriesOrFrame, options = {}) {
           y: {
             beginAtZero: false,
             grid: { color: '#EEEEEE' },
-            ticks: { callback: v => v + '%' },
+            ticks: { callback: v => asDrawdown ? (v + '%') : ((v * 100).toFixed(1) + '%') },
           },
           x: {
             type: 'time',

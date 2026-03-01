@@ -83,7 +83,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 ### Plot
 
 - `plotSeriesHtml(seriesOrFrame, options?)` — generate full-page HTML with a line
-  chart of cumulative returns (100 base).
+  chart of cumulative returns (base 1).
   Works with `OpenTimeSeries` or `OpenFrame` (use `mergeSeries("inner")` first).
   Options: `title`, `logoUrl`, `addLogo`.
 - `plotSeries(seriesOrFrame, options?)` — async: writes HTML to file and optionally
@@ -152,7 +152,7 @@ npm run report:iris -- --from-date 2023-01-01 --to-date 2024-12-31 --no-open
 
 ### Plot Script
 
-Generates a full-page HTML line chart of cumulative returns (100 base)
+Generates a full-page HTML line chart of cumulative returns (base 1)
 from Captor API timeseries.
 With the default Captor preset (no `--ids`), an equal-weight portfolio series is included.
 
@@ -161,11 +161,12 @@ With the default Captor preset (no `--ids`), an equal-weight portfolio series is
 | `npm run plot` | Plot with custom or default Captor series IDs |
 | `npm run plot:iris` | Preset: Captor Iris Bond + Benchmark Index |
 | `npm run plot:captor` | Same as `plot` |
+| `npm run plot:drawdown` | DEFAULT_SERIES as drawdown series |
 
 **Default output** (in `~/Documents`): `iris_plot.html` (Iris preset), `captor_plot.html`
-(default Captor preset), or `plot.html` (custom `--ids`).
+(default Captor preset), `drawdown_plot.html` (drawdown preset), or `plot.html` (custom `--ids`).
 
-**Options** (pass after `--`): same as Report (`--ids`, `--iris`, `--title`,
+**Options** (pass after `--`): same as Report (`--ids`, `--iris`, `--drawdown`, `--title`,
 `--countries`, `--from-date`, `--to-date`, `--filename`, `--no-open`, `--no-logo`).
 
 **Examples:**

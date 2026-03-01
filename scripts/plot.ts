@@ -6,12 +6,14 @@
  *
  * Usage:
  *   npm run plot:iris [options]
+ *   npm run plot:drawdown [options]
  *   npm run plot -- --ids id1 id2 [options]
  *   npx tsx scripts/plot.ts --iris
  *
  * Options:
  *   --ids id1 id2 ...     Captor series IDs (alternative: --iris for Iris preset)
  *   --iris                Use Iris Bond + Benchmark preset IDs
+ *   --drawdown            Use DEFAULT_SERIES converted to drawdown series
  *   --title "Title"       Plot title
  *   --countries "SE,US"   Country codes (default: SE)
  *   --from-date YYYY-MM-DD  Truncate to start from this date
@@ -54,6 +56,7 @@ function parseArgs(args: string[]): {
   autoOpen: boolean;
   addLogo: boolean;
   useIris: boolean;
+  useDrawdown: boolean;
   addPortfolio: boolean;
 } {
   let title = "Series Plot";
@@ -65,6 +68,7 @@ function parseArgs(args: string[]): {
   let addLogo = true;
   const ids: string[] = [];
   let useIris = false;
+  let useDrawdown = false;
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -92,6 +96,8 @@ function parseArgs(args: string[]): {
       addLogo = false;
     } else if (a === "--iris") {
       useIris = true;
+    } else if (a === "--drawdown") {
+      useDrawdown = true;
     } else if (a === "--ids") {
       i++;
       while (i < args.length && !args[i]!.startsWith("--")) {
@@ -104,10 +110,20 @@ function parseArgs(args: string[]): {
     }
   }
 
-  const preset = useIris ? IRIS_SERIES : ids.length > 0 ? null : DEFAULT_SERIES;
+  const preset = useDrawdown
+    ? DEFAULT_SERIES
+    : useIris
+      ? IRIS_SERIES
+      : ids.length > 0
+        ? null
+        : DEFAULT_SERIES;
   const finalIds = preset ? preset.map((s) => s.id) : ids;
   const presetNames = preset ? preset.map((s) => s.name) : undefined;
-  const finalTitle = useIris ? IRIS_SERIES[0]!.name : title;
+  const finalTitle = useDrawdown
+    ? "Drawdown Series"
+    : useIris
+      ? IRIS_SERIES[0]!.name
+      : title;
 
   return {
     ids: finalIds,
@@ -120,7 +136,8 @@ function parseArgs(args: string[]): {
     autoOpen,
     addLogo,
     useIris,
-    addPortfolio: !useIris && ids.length === 0,
+    useDrawdown,
+    addPortfolio: !useIris && !useDrawdown && ids.length === 0,
   };
 }
 
@@ -140,6 +157,12 @@ async function main(): Promise<void> {
       { countries: opts.countries },
     ),
   );
+
+  // Convert to drawdown series on constituents (OpenTimeSeries) before building OpenFrame.
+  // OpenFrame does not have toDrawdownSeries; conversion applies only to OpenTimeSeries.
+  if (opts.useDrawdown) {
+    for (const s of series) s.toDrawdownSeries();
+  }
 
   const frame = new OpenFrame(series, null, { countries: opts.countries });
   frame.mergeSeries("inner");
@@ -165,11 +188,13 @@ async function main(): Promise<void> {
     frame.addTimeseries(portSeries);
   }
 
-  const defaultFilename = opts.useIris
-    ? "iris_plot.html"
-    : opts.addPortfolio
-      ? "captor_plot.html"
-      : "plot.html";
+  const defaultFilename = opts.useDrawdown
+    ? "drawdown_plot.html"
+    : opts.useIris
+      ? "iris_plot.html"
+      : opts.addPortfolio
+        ? "captor_plot.html"
+        : "plot.html";
   const plotPath = await plotSeries(frame, {
     title: opts.title,
     logoUrl: opts.addLogo
@@ -178,6 +203,7 @@ async function main(): Promise<void> {
     addLogo: opts.addLogo,
     filename: opts.filename ?? defaultFilename,
     autoOpen: opts.autoOpen,
+    asDrawdown: opts.useDrawdown,
   });
 
   console.log(`Plot saved to ${plotPath}`);
