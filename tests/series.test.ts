@@ -175,6 +175,50 @@ describe("OpenTimeSeries", () => {
       expect(to9(s.maxDrawdown())).toBe("-0.059536861");
     });
 
+    it("maxDrawdownBottomDate returns date of drawdown bottom", () => {
+      const s = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06"],
+        [100, 80, 90, 95],
+      );
+      expect(s.maxDrawdownBottomDate()).toBe("2020-01-02");
+    });
+
+    it("maxDrawdownBottomDate returns undefined when no drawdown", () => {
+      const s = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02", "2020-01-03"],
+        [100, 101, 102],
+      );
+      expect(s.maxDrawdownBottomDate()).toBeUndefined();
+    });
+
+    it("maxDrawdownBottomDate returns undefined when too few points", () => {
+      const s = OpenTimeSeries.fromArrays("Test", ["2020-01-01"], [100]);
+      expect(s.maxDrawdownBottomDate()).toBeUndefined();
+    });
+
+    it("maxDrawdownBottomDate respects fromDate and toDate", () => {
+      // Full series: 100 -> 80 (bottom) -> 90 -> 70 (deeper bottom)
+      const s = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06"],
+        [100, 80, 90, 70],
+      );
+      expect(s.maxDrawdownBottomDate()).toBe("2020-01-06");
+      expect(s.maxDrawdownBottomDate({ toDate: "2020-01-03" })).toBe("2020-01-02");
+      expect(s.maxDrawdownBottomDate({ fromDate: "2020-01-03" })).toBe("2020-01-06");
+    });
+
+    it("maxDrawdownBottomDate returns last date when bottom is at end", () => {
+      const s = OpenTimeSeries.fromArrays(
+        "Test",
+        ["2020-01-01", "2020-01-02", "2020-01-03"],
+        [100, 90, 80],
+      );
+      expect(s.maxDrawdownBottomDate()).toBe("2020-01-03");
+    });
+
     it("varDown matches expected", () => {
       const s = simulatedSeries("Test");
       s.valueToRet();

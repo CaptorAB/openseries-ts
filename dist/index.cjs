@@ -619,6 +619,27 @@ var OpenTimeSeries = class _OpenTimeSeries {
     }
     return mdd;
   }
+  /**
+   * Returns the date when the max drawdown bottom occurs (the date of the lowest point
+   * relative to the preceding peak). Returns undefined if no drawdown occurs.
+   */
+  maxDrawdownBottomDate(opts = {}) {
+    const { dates, values } = this.sliceByRange(opts);
+    if (dates.length < 2) return void 0;
+    let peak = values[0];
+    let mdd = 0;
+    let bottomIdx = -1;
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      peak = Math.max(peak, v);
+      const dd = v / peak - 1;
+      if (dd < mdd) {
+        mdd = dd;
+        bottomIdx = i;
+      }
+    }
+    return bottomIdx >= 0 ? dates[bottomIdx] : void 0;
+  }
   varDown(level = 0.95, opts = {}) {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -1104,6 +1125,47 @@ var OpenFrame = class {
       }
     }
     return inv;
+  }
+  /**
+   * Max drawdown per column (price series). Returns array of max drawdowns.
+   */
+  maxDrawdown() {
+    const { dates, columns } = this.tsdf;
+    if (dates.length < 2) return columns.map(() => 0);
+    return columns.map((values) => {
+      let peak = NaN;
+      let mdd = 0;
+      for (const v of values) {
+        if (!Number.isFinite(v)) continue;
+        peak = Number.isFinite(peak) ? Math.max(peak, v) : v;
+        mdd = Math.min(mdd, v / peak - 1);
+      }
+      return mdd;
+    });
+  }
+  /**
+   * Date when max drawdown bottom occurs per column.
+   * Returns array of date strings (or undefined when no drawdown).
+   */
+  maxDrawdownBottomDate() {
+    const { dates, columns } = this.tsdf;
+    if (dates.length < 2) return columns.map(() => void 0);
+    return columns.map((values) => {
+      let peak = NaN;
+      let mdd = 0;
+      let bottomIdx = -1;
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i];
+        if (!Number.isFinite(v)) continue;
+        peak = Number.isFinite(peak) ? Math.max(peak, v) : v;
+        const dd = v / peak - 1;
+        if (dd < mdd) {
+          mdd = dd;
+          bottomIdx = i;
+        }
+      }
+      return bottomIdx >= 0 ? dates[bottomIdx] : void 0;
+    });
   }
   trackingError(baseColumn = -1, _opts) {
     const rets = this.ensureReturns().map((col) => col.slice(1));

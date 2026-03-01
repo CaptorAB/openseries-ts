@@ -46,6 +46,7 @@ const PY_TO_TS: Record<string, string> = {
   "Worst": "worst",
   "Worst month": "worst_month",
   "Max drawdown": "max_drawdown",
+  "Max drawdown date": "max_drawdown_date",
   "first indices": "first_idx",
   "last indices": "last_idx",
   "observations": "length",
@@ -163,8 +164,8 @@ function main(): void {
   const pythonMetrics = loadPythonMetrics(DATA_PATH);
 
   // 1. Single-asset metrics: OpenTimeSeries("Captor Iris Bond") - TS vs Python
-  const tsMetrics: Record<string, string | number> = {};
-  const metrics: { pyKey: string; getTs: () => number | string }[] = [
+  const tsMetrics: Record<string, string | number | undefined> = {};
+  const metrics: { pyKey: string; getTs: () => number | string | undefined }[] = [
     { pyKey: "value_ret", getTs: () => irisSeries.valueRet() },
     { pyKey: "geo_ret", getTs: () => irisSeries.geoRet() },
     { pyKey: "arithmetic_ret", getTs: () => irisSeries.arithmeticRet() },
@@ -182,6 +183,7 @@ function main(): void {
     { pyKey: "worst", getTs: () => irisSeries.worst(1) },
     { pyKey: "worst_month", getTs: () => irisSeries.worstMonth() },
     { pyKey: "max_drawdown", getTs: () => irisSeries.maxDrawdown() },
+    { pyKey: "max_drawdown_date", getTs: () => irisSeries.maxDrawdownBottomDate() },
     { pyKey: "first_idx", getTs: () => irisSeries.firstIdx },
     { pyKey: "last_idx", getTs: () => irisSeries.lastIdx },
     { pyKey: "length", getTs: () => irisSeries.length },

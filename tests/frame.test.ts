@@ -97,6 +97,64 @@ describe("OpenFrame", () => {
     expect(to9(ir[2])).toBe("-0.175749797");
   });
 
+  it("maxDrawdown returns array of max drawdowns per column (seed 71)", () => {
+    const frame = simulatedFrame();
+    const mdd = frame.maxDrawdown();
+    expect(mdd.length).toBe(3);
+    expect(mdd.every((x) => x <= 0)).toBe(true);
+    expect(mdd.every((x) => Number.isFinite(x))).toBe(true);
+  });
+
+  it("maxDrawdownBottomDate returns bottom date per column (seed 71)", () => {
+    const frame = simulatedFrame();
+    const bottoms = frame.maxDrawdownBottomDate();
+    expect(bottoms.length).toBe(3);
+    expect(bottoms.every((d) => d === undefined || /^\d{4}-\d{2}-\d{2}$/.test(d!))).toBe(true);
+  });
+
+  it("maxDrawdownBottomDate matches constituent series bottom dates", () => {
+    const s1 = OpenTimeSeries.fromArrays(
+      "A",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [100, 80, 90],
+    );
+    const s2 = OpenTimeSeries.fromArrays(
+      "B",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [50, 60, 40],
+    );
+    const frame = new OpenFrame([s1, s2]);
+    const bottoms = frame.maxDrawdownBottomDate();
+    expect(bottoms[0]).toBe("2020-01-02");
+    expect(bottoms[1]).toBe("2020-01-03");
+  });
+
+  it("maxDrawdownBottomDate returns undefined for column with no drawdown", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [100, 80]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [50, 60]);
+    const frame = new OpenFrame([s1, s2]);
+    const bottoms = frame.maxDrawdownBottomDate();
+    expect(bottoms[0]).toBe("2020-01-02");
+    expect(bottoms[1]).toBeUndefined();
+  });
+
+  it("maxDrawdown matches constituent series maxDrawdown", () => {
+    const s1 = OpenTimeSeries.fromArrays(
+      "A",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [100, 80, 90],
+    );
+    const s2 = OpenTimeSeries.fromArrays(
+      "B",
+      ["2020-01-01", "2020-01-02", "2020-01-03"],
+      [50, 60, 40],
+    );
+    const frame = new OpenFrame([s1, s2]);
+    const mdd = frame.maxDrawdown();
+    expect(mdd[0]).toBe(s1.maxDrawdown());
+    expect(mdd[1]).toBe(s2.maxDrawdown());
+  });
+
   it("beta and jensenAlpha match expected (seed 71)", () => {
     const frame = simulatedFrame();
     expect(to9(frame.beta(0, 1))).toBe("0.025083312");

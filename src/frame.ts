@@ -307,6 +307,49 @@ export class OpenFrame {
     return inv;
   }
 
+  /**
+   * Max drawdown per column (price series). Returns array of max drawdowns.
+   */
+  maxDrawdown(): number[] {
+    const { dates, columns } = this.tsdf;
+    if (dates.length < 2) return columns.map(() => 0);
+    return columns.map((values) => {
+      let peak = NaN;
+      let mdd = 0;
+      for (const v of values) {
+        if (!Number.isFinite(v)) continue;
+        peak = Number.isFinite(peak) ? Math.max(peak, v) : v;
+        mdd = Math.min(mdd, v / peak - 1);
+      }
+      return mdd;
+    });
+  }
+
+  /**
+   * Date when max drawdown bottom occurs per column.
+   * Returns array of date strings (or undefined when no drawdown).
+   */
+  maxDrawdownBottomDate(): (string | undefined)[] {
+    const { dates, columns } = this.tsdf;
+    if (dates.length < 2) return columns.map(() => undefined);
+    return columns.map((values) => {
+      let peak = NaN;
+      let mdd = 0;
+      let bottomIdx = -1;
+      for (let i = 0; i < values.length; i++) {
+        const v = values[i];
+        if (!Number.isFinite(v)) continue;
+        peak = Number.isFinite(peak) ? Math.max(peak, v) : v;
+        const dd = v / peak - 1;
+        if (dd < mdd) {
+          mdd = dd;
+          bottomIdx = i;
+        }
+      }
+      return bottomIdx >= 0 ? dates[bottomIdx] : undefined;
+    });
+  }
+
   trackingError(baseColumn = -1, _opts?: { fromDate?: string; toDate?: string }): number[] {
     const rets = this.ensureReturns().map((col) => col.slice(1));
     const baseIdx = baseColumn < 0 ? this.itemCount + baseColumn : baseColumn;

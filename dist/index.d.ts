@@ -177,6 +177,11 @@ declare class OpenTimeSeries {
     valueRet(opts?: DateRangeOptions): number;
     vol(opts?: DateRangeOptions): number;
     maxDrawdown(opts?: DateRangeOptions): number;
+    /**
+     * Returns the date when the max drawdown bottom occurs (the date of the lowest point
+     * relative to the preceding peak). Returns undefined if no drawdown occurs.
+     */
+    maxDrawdownBottomDate(opts?: DateRangeOptions): string | undefined;
     varDown(level?: number, opts?: DateRangeOptions): number;
     cvarDown(level?: number, opts?: DateRangeOptions): number;
     downsideDeviation(opts?: DateRangeOptions, mar?: number): number;
@@ -246,6 +251,15 @@ declare class OpenFrame {
     };
     private calcWeights;
     private invertMatrix;
+    /**
+     * Max drawdown per column (price series). Returns array of max drawdowns.
+     */
+    maxDrawdown(): number[];
+    /**
+     * Date when max drawdown bottom occurs per column.
+     * Returns array of date strings (or undefined when no drawdown).
+     */
+    maxDrawdownBottomDate(): (string | undefined)[];
     trackingError(baseColumn?: number, _opts?: {
         fromDate?: string;
         toDate?: string;

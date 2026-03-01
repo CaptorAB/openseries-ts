@@ -296,6 +296,28 @@ export class OpenTimeSeries {
     return mdd;
   }
 
+  /**
+   * Returns the date when the max drawdown bottom occurs (the date of the lowest point
+   * relative to the preceding peak). Returns undefined if no drawdown occurs.
+   */
+  maxDrawdownBottomDate(opts: DateRangeOptions = {}): string | undefined {
+    const { dates, values } = this.sliceByRange(opts);
+    if (dates.length < 2) return undefined;
+    let peak = values[0];
+    let mdd = 0;
+    let bottomIdx = -1;
+    for (let i = 0; i < values.length; i++) {
+      const v = values[i];
+      peak = Math.max(peak, v);
+      const dd = v / peak - 1;
+      if (dd < mdd) {
+        mdd = dd;
+        bottomIdx = i;
+      }
+    }
+    return bottomIdx >= 0 ? dates[bottomIdx] : undefined;
+  }
+
   varDown(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
