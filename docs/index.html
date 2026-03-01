@@ -38,6 +38,7 @@ or simulation output</li>
 <h3 id="openframe" class="tsd-anchor-link">OpenFrame<a href="#openframe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul>
 <li><code>mergeSeries()</code>, <code>truncFrame()</code> - Align multiple series</li>
+<li><code>toDrawdownSeries()</code> - Convert aligned columns to drawdown (value/peak - 1)</li>
 <li><code>makePortfolio()</code> - Weighted portfolio (eq_weights, inv_vol, max_div, min_vol_overweight)</li>
 <li><code>correlMatrix()</code>, <code>trackingError()</code>, <code>infoRatio()</code>, <code>beta()</code>, <code>jensenAlpha()</code></li>
 <li><code>maxDrawdown()</code>, <code>maxDrawdownBottomDate()</code> - Per-column drawdown metrics</li>
@@ -70,7 +71,7 @@ Countries for business-day metrics come from <code>frame.countries</code>.</li>
 <li><code>plotSeriesHtml(seriesOrFrame, options?)</code> — generate full-page HTML with a line
 chart of cumulative returns (base 1).
 Works with <code>OpenTimeSeries</code> or <code>OpenFrame</code> (use <code>mergeSeries(&quot;inner&quot;)</code> first).
-Options: <code>title</code>, <code>logoUrl</code>, <code>addLogo</code>.</li>
+Options: <code>title</code>, <code>logoUrl</code>, <code>addLogo</code>, <code>asDrawdown</code> (plot drawdown series).</li>
 <li><code>plotSeries(seriesOrFrame, options?)</code> — async: writes HTML to file and optionally
 opens in browser.
 Options: <code>title</code>, <code>logoUrl</code>, <code>addLogo</code>, <code>filename</code> (default: <code>~/Documents/plot.html</code>),

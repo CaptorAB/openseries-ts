@@ -241,6 +241,12 @@ declare class OpenFrame {
     get lastIdx(): string;
     get periodInAYear(): number;
     mergeSeries(how?: "inner" | "outer"): this;
+    /**
+     * Converts each column to drawdown series (value / running peak - 1).
+     * Operates on the frame's aligned tsdf. Call after mergeSeries and truncate
+     * so drawdown is computed on the truncated date range.
+     */
+    toDrawdownSeries(): this;
     /** Returns return columns (first element 0). Throws if mixed PRICE/RTRN. */
     returnColumns(): number[][];
     private ensureReturns;

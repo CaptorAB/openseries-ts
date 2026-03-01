@@ -53,6 +53,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 ### OpenFrame
 
 - `mergeSeries()`, `truncFrame()` - Align multiple series
+- `toDrawdownSeries()` - Convert aligned columns to drawdown (value/peak - 1)
 - `makePortfolio()` - Weighted portfolio (eq_weights, inv_vol, max_div, min_vol_overweight)
 - `correlMatrix()`, `trackingError()`, `infoRatio()`, `beta()`, `jensenAlpha()`
 - `maxDrawdown()`, `maxDrawdownBottomDate()` - Per-column drawdown metrics
@@ -85,7 +86,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 - `plotSeriesHtml(seriesOrFrame, options?)` — generate full-page HTML with a line
   chart of cumulative returns (base 1).
   Works with `OpenTimeSeries` or `OpenFrame` (use `mergeSeries("inner")` first).
-  Options: `title`, `logoUrl`, `addLogo`.
+  Options: `title`, `logoUrl`, `addLogo`, `asDrawdown` (plot drawdown series).
 - `plotSeries(seriesOrFrame, options?)` — async: writes HTML to file and optionally
   opens in browser.
   Options: `title`, `logoUrl`, `addLogo`, `filename` (default: `~/Documents/plot.html`),

@@ -171,6 +171,98 @@ describe("OpenFrame", () => {
     expect(mdd[1]).toBe(s2.maxDrawdown());
   });
 
+  describe("toDrawdownSeries", () => {
+    it("converts each column to drawdown (value/peak - 1)", () => {
+      const s1 = OpenTimeSeries.fromArrays(
+        "A",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06"],
+        [100, 80, 90, 95],
+      );
+      const s2 = OpenTimeSeries.fromArrays(
+        "B",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06"],
+        [50, 60, 55, 70],
+      );
+      const frame = new OpenFrame([s1, s2]);
+      frame.mergeSeries("inner");
+      frame.toDrawdownSeries();
+      expect(frame.tsdf.columns[0][0]).toBe(0);
+      expect(frame.tsdf.columns[0][1]).toBeCloseTo(-0.2);
+      expect(frame.tsdf.columns[0][2]).toBeCloseTo(-0.1);
+      expect(frame.tsdf.columns[0][3]).toBeCloseTo(-0.05);
+      expect(frame.tsdf.columns[1][0]).toBe(0);
+      expect(frame.tsdf.columns[1][1]).toBe(0);
+      expect(frame.tsdf.columns[1][2]).toBeCloseTo(55 / 60 - 1);
+      expect(frame.tsdf.columns[1][3]).toBe(0);
+    });
+
+    it("operates on truncated data when called after truncFrame", () => {
+      const s1 = OpenTimeSeries.fromArrays(
+        "A",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"],
+        [100, 80, 90, 85, 88],
+      );
+      const s2 = OpenTimeSeries.fromArrays(
+        "B",
+        ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"],
+        [50, 60, 55, 52, 54],
+      );
+      const frame = new OpenFrame([s1, s2]);
+      frame.mergeSeries("inner");
+      frame.truncFrame({ startCut: "2020-01-03", endCut: "2020-01-06", where: "both" });
+      frame.toDrawdownSeries();
+      expect(frame.tsdf.dates).toEqual(["2020-01-03", "2020-01-06"]);
+      expect(frame.tsdf.columns[0][0]).toBe(0);
+      expect(frame.tsdf.columns[0][1]).toBeCloseTo(85 / 90 - 1);
+      expect(frame.tsdf.columns[1][0]).toBe(0);
+      expect(frame.tsdf.columns[1][1]).toBeCloseTo(52 / 55 - 1);
+    });
+
+    it("returns this for chaining", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [100, 90]);
+      const frame = new OpenFrame([s1]);
+      frame.mergeSeries("inner");
+      const result = frame.toDrawdownSeries();
+      expect(result).toBe(frame);
+    });
+
+    it("handles NaN by treating as -Infinity for peak", () => {
+      const s1 = OpenTimeSeries.fromArrays(
+        "A",
+        ["2020-01-01", "2020-01-02", "2020-01-03"],
+        [100, 50, 95],
+      );
+      const frame = new OpenFrame([s1]);
+      frame.mergeSeries("inner");
+      frame.tsdf.columns[0][1] = Number.NaN;
+      frame.toDrawdownSeries();
+      expect(frame.tsdf.columns[0][0]).toBe(0);
+      expect(Number.isFinite(frame.tsdf.columns[0][1]!)).toBe(false);
+      expect(frame.tsdf.columns[0][2]).toBeCloseTo(-0.05);
+    });
+
+    it("handles single date", () => {
+      const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01"], [100]);
+      const frame = new OpenFrame([s1]);
+      frame.mergeSeries("inner");
+      frame.toDrawdownSeries();
+      expect(frame.tsdf.columns[0]).toEqual([0]);
+    });
+
+    it("syncs constituents tsdf to drawdown values", () => {
+      const s1 = OpenTimeSeries.fromArrays(
+        "A",
+        ["2020-01-01", "2020-01-02"],
+        [100, 90],
+      );
+      const frame = new OpenFrame([s1]);
+      frame.mergeSeries("inner");
+      frame.toDrawdownSeries();
+      expect(frame.constituents[0]!.getTsdfValues()[0]).toBe(0);
+      expect(frame.constituents[0]!.getTsdfValues()[1]).toBeCloseTo(-0.1);
+    });
+  });
+
   it("beta and jensenAlpha match expected (seed 71)", () => {
     const frame = simulatedFrame();
     expect(to9(frame.beta(0, 1))).toBe("0.025083312");

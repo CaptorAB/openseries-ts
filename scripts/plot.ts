@@ -158,12 +158,6 @@ async function main(): Promise<void> {
     ),
   );
 
-  // Convert to drawdown series on constituents (OpenTimeSeries) before building OpenFrame.
-  // OpenFrame does not have toDrawdownSeries; conversion applies only to OpenTimeSeries.
-  if (opts.useDrawdown) {
-    for (const s of series) s.toDrawdownSeries();
-  }
-
   const frame = new OpenFrame(series, null, { countries: opts.countries });
   frame.mergeSeries("inner");
 
@@ -174,6 +168,10 @@ async function main(): Promise<void> {
       where: "both",
     });
     console.log(`Truncated to ${frame.firstIdx} .. ${frame.lastIdx}`);
+  }
+
+  if (opts.useDrawdown) {
+    frame.toDrawdownSeries();
   }
 
   // Add portfolio timeseries only for default Captor preset (not Iris, not custom --ids)

@@ -147,6 +147,32 @@ export class OpenFrame {
     return this;
   }
 
+  /**
+   * Converts each column to drawdown series (value / running peak - 1).
+   * Operates on the frame's aligned tsdf. Call after mergeSeries and truncate
+   * so drawdown is computed on the truncated date range.
+   */
+  toDrawdownSeries(): this {
+    const newColumns = this.tsdf.columns.map((col) => {
+      const vals = col.map((v) => (Number.isNaN(v) ? -Infinity : v));
+      let peak = vals[0];
+      const drawdown = vals.map((v) => {
+        peak = Math.max(peak, v);
+        return v / peak - 1;
+      });
+      return drawdown;
+    });
+    this.tsdf = { dates: this.tsdf.dates, columns: newColumns };
+    for (let i = 0; i < this.constituents.length && i < newColumns.length; i++) {
+      const col = newColumns[i]!;
+      this.constituents[i]!.tsdf = this.tsdf.dates.map((d, j) => ({
+        date: d,
+        value: col[j] ?? NaN,
+      }));
+    }
+    return this;
+  }
+
   /** Returns return columns (first element 0). Throws if mixed PRICE/RTRN. */
   returnColumns(): number[][] {
     return this.ensureReturns();
