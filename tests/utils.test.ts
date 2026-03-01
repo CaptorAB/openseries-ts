@@ -94,8 +94,20 @@ describe("utils", () => {
     expect(skewness([5, 5, 5])).toBe(0);
   });
 
+  it("skewness returns NaN when n < 3", () => {
+    expect(skewness([])).toBeNaN();
+    expect(skewness([1])).toBeNaN();
+    expect(skewness([1, 2])).toBeNaN();
+  });
+
   it("kurtosis returns 0 when std is 0", () => {
     expect(kurtosis([5, 5, 5, 5])).toBe(0);
+  });
+
+  it("kurtosis returns NaN when n < 4", () => {
+    expect(kurtosis([])).toBeNaN();
+    expect(kurtosis([1])).toBeNaN();
+    expect(kurtosis([1, 2, 3])).toBeNaN();
   });
 
   describe("normPpf", () => {

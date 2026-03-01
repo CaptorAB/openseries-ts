@@ -355,9 +355,9 @@ function dateToStr2(d) {
   return d.toISOString().slice(0, 10);
 }
 function daysBetween(a, b) {
-  return Math.round(
-    (parseDate2(b).getTime() - parseDate2(a).getTime()) / (1e3 * 60 * 60 * 24)
-  );
+  const msPerDay = 1e3 * 60 * 60 * 24;
+  const days = (parseDate2(b).getTime() - parseDate2(a).getTime()) / msPerDay;
+  return Math.floor(days);
 }
 var OpenTimeSeries = class _OpenTimeSeries {
   constructor(params) {

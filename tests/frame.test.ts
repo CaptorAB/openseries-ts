@@ -147,6 +147,30 @@ describe("OpenFrame", () => {
     expect(r.rsquared).toBeLessThanOrEqual(1);
   });
 
+  it("ordLeastSquaresFit returns NaN object for invalid column indices", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [1, 2]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [3, 5]);
+    const frame = new OpenFrame([s1, s2]);
+    const r1 = frame.ordLeastSquaresFit(99, 0, { fittedSeries: false });
+    expect(r1.coefficient).toBeNaN();
+    expect(r1.intercept).toBeNaN();
+    expect(r1.rsquared).toBeNaN();
+    const r2 = frame.ordLeastSquaresFit(0, 99, { fittedSeries: false });
+    expect(r2.coefficient).toBeNaN();
+    expect(r2.intercept).toBeNaN();
+    expect(r2.rsquared).toBeNaN();
+  });
+
+  it("ordLeastSquaresFit returns NaN when fewer than 2 valid pairs", () => {
+    const s1 = OpenTimeSeries.fromArrays("x", ["2020-01-01", "2020-01-02"], [1, 2]);
+    const s2 = OpenTimeSeries.fromArrays("y", ["2020-01-01", "2020-01-02"], [NaN, NaN]);
+    const frame = new OpenFrame([s1, s2]);
+    const r = frame.ordLeastSquaresFit(1, 0, { fittedSeries: false });
+    expect(r.coefficient).toBeNaN();
+    expect(r.intercept).toBeNaN();
+    expect(r.rsquared).toBeNaN();
+  });
+
   it("makePortfolio min_vol_overweight produces valid output (seed 71)", () => {
     const frame = simulatedFrame();
     const port = frame.makePortfolio("P", "min_vol_overweight");

@@ -41,12 +41,15 @@ if __name__ == "__main__":
         .to_cumret()
     )
 
-    _ = frame.to_json(what_output="values", filename="frame.json")
+    docs = Path.home() / "Documents"
+    frame.to_json(what_output="values", filename=str(docs / "frame.json"))
     data = frame.all_properties()
     data.columns = data.columns.droplevel(level=1)
 
-    data.loc["periods_in_a_year", iris_label] = iris_series.periods_in_a_year
-    data.loc["yearfrac", iris_label] = iris_series.yearfrac
+    # Use truncated Iris (same as frame.json) for yearfrac/periods - matches TS compare script
+    truncated_iris = frame.constituents[IRIS_COL]
+    data.loc["periods_in_a_year", iris_label] = truncated_iris.periods_in_a_year
+    data.loc["yearfrac", iris_label] = truncated_iris.yearfrac
 
     # Append all comparison metrics (Iris vs Benchmark) to Captor Iris Bond column
     te_series = frame.tracking_error_func(base_column=BMK_COL)
@@ -71,5 +74,5 @@ if __name__ == "__main__":
 
     data = data.drop(labels=["Kappa-3 ratio", "Omega ratio", "Max drawdown in cal yr"], errors="ignore")
 
-    data_path = Path.home() / "Documents" / "data.json"
+    data_path = docs / "data.json"
     data.to_json(data_path, date_format="iso", indent=2)

@@ -265,6 +265,12 @@ describe("OpenTimeSeries", () => {
       expect(s.yearfrac).toBeCloseTo(s.spanOfDays / 365.25);
     });
 
+    it("periodsInAYear equals length / yearfrac", () => {
+      const s = simulatedSeries("Test");
+      expect(s.periodsInAYear).toBeCloseTo(s.length / s.yearfrac);
+      expect(s.periodsInAYear).toBeGreaterThan(0);
+    });
+
     it("toDrawdownSeries values match expected (seed 71)", () => {
       const s = simulatedSeries("Test");
       s.toDrawdownSeries();

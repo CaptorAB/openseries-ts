@@ -13,6 +13,29 @@ import { ValueType } from "../src/types";
 const to9 = (x: number) => x.toFixed(9);
 
 describe("simulatePortfolios", () => {
+  it("handles PRICE frame with zero value (prev===0 branch)", () => {
+    const dates = ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06"];
+    const s1 = OpenTimeSeries.fromArrays("A", dates, [100, 0, 50, 60]);
+    const s2 = OpenTimeSeries.fromArrays("B", dates, [100, 101, 102, 103]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const sims = simulatePortfolios(frame, 20, 71);
+    expect(sims.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("handles constant returns (covers vol=0 branch)", () => {
+    const dates = ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"];
+    const s1 = OpenTimeSeries.fromArrays("A", dates, [100, 101, 102, 103, 104]);
+    const s2 = OpenTimeSeries.fromArrays("B", dates, [100, 101, 102, 103, 104]);
+    s1.valueToRet();
+    s2.valueToRet();
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    frame.mergeSeries("inner");
+    const sims = simulatePortfolios(frame, 10, 71);
+    expect(sims.length).toBeGreaterThan(0);
+    // With identical returns, portfolio vol is 0, sharpe gets 0 from vol===0 branch
+    expect(sims.every((s) => s.stdev >= 0 && Number.isFinite(s.sharpe))).toBe(true);
+  });
+
   it("first portfolio ret, stdev, sharpe match expected (normal 0.07/0.15, seed 71)", () => {
     const frame = simulatedFrame({
       meanRet: 0.07,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { reportHtml, computeCaptureRatioCagr } from "../src/report";
+import { reportHtml, computeCaptureRatioCagr, computeAnnualReturns } from "../src/report";
 import { OpenFrame } from "../src/frame";
 import { OpenTimeSeries } from "../src/series";
 
@@ -140,6 +140,16 @@ describe("reportHtml", () => {
       const asset = [0.02, 0.02, 0.02];
       expect(computeCaptureRatioCagr(asset, bench, 12)).toBeNaN();
     });
+    it("returns NaN when downIdxReturn near zero", () => {
+      const bench = [-0.001, -0.001];
+      const asset = [0.02, 0.02];
+      expect(computeCaptureRatioCagr(asset, bench, 12)).toBeNaN();
+    });
+    it("returns NaN when downReturn >= 0 (asset positive in down months)", () => {
+      const bench = [0.02, -0.01, -0.02, 0.01];
+      const asset = [0.03, 0.01, 0.02, 0.02];
+      expect(computeCaptureRatioCagr(asset, bench, 12)).toBeNaN();
+    });
     it("returns NaN when benchmark has no down months", () => {
       const bench = [0.01, 0.02, 0.01, 0.02];
       const asset = [-0.01, 0.03, 0.01, 0.02];
@@ -152,6 +162,20 @@ describe("reportHtml", () => {
       const r = computeCaptureRatioCagr(asset, bench, 12);
       expect(Number.isFinite(r)).toBe(true);
     });
+  });
+
+  it("computeAnnualReturns returns NaN when first value of year <= 0", () => {
+    const dates = ["2020-01-01", "2020-06-15"];
+    const values = [0, 100];
+    const result = computeAnnualReturns(dates, values);
+    expect(result["2020"]).toBeNaN();
+  });
+
+  it("computeAnnualReturns returns valid return when first > 0", () => {
+    const dates = ["2020-01-01", "2020-12-31"];
+    const values = [100, 110];
+    const result = computeAnnualReturns(dates, values);
+    expect(result["2020"]).toBeCloseTo(0.1);
   });
 
   it("handles capture ratio edge case when benchmark has no down months", () => {

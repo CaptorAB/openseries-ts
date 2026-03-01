@@ -32,10 +32,11 @@ function dateToStr(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** Integer days between dates; matches Python's (date2 - date1).days. */
 function daysBetween(a: string, b: string): number {
-  return Math.round(
-    (parseDate(b).getTime() - parseDate(a).getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const days = (parseDate(b).getTime() - parseDate(a).getTime()) / msPerDay;
+  return Math.floor(days);
 }
 
 /** Timeseries of dates and values with methods for risk metrics. */

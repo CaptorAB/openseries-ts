@@ -27,7 +27,8 @@ function formatNum(val: number, decimals = 2): string {
   return val.toFixed(decimals);
 }
 
-function computeAnnualReturns(dates: string[], values: number[]): Record<string, number> {
+/** Exported for testing. */
+export function computeAnnualReturns(dates: string[], values: number[]): Record<string, number> {
   const byYear: Record<string, { first: number; last: number }> = {};
   for (let i = 0; i < dates.length; i++) {
     const year = dates[i].slice(0, 4);
