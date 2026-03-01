@@ -26,14 +26,16 @@
  *   npm run plot:iris -- --from-date 2023-01-01 --to-date 2024-12-31
  */
 
-const IRIS_ID = "5b72a10c23d27735104e0576";
-const BENCHMARK_ID = "63892890473ba6918f4ee954";
+const IRIS_SERIES = [
+  { id: "5b72a10c23d27735104e0576", name: "Captor Iris Bond" },
+  { id: "63892890473ba6918f4ee954", name: "Benchmark Index" },
+] as const;
 
-const DEFAULT_IDS = [
-  "638f681e0c2f4c8d28a13392",
-  "5b72a10c23d27735104e0576",
-  "5c1115fbce5b131cf0b224fc",
-];
+const DEFAULT_SERIES = [
+  { id: "638f681e0c2f4c8d28a13392", name: "Captor Aster Global High Yield" },
+  { id: "5b72a10c23d27735104e0576", name: "Captor Iris Bond" },
+  { id: "5c1115fbce5b131cf0b224fc", name: "Captor Scilla Global Equity" },
+] as const;
 
 import { fetchCaptorSeriesBatch } from "../src/captor";
 import { OpenTimeSeries } from "../src/series";
@@ -43,6 +45,7 @@ import type { CountryCode } from "../src/bizcalendar";
 
 function parseArgs(args: string[]): {
   ids: string[];
+  presetNames: string[] | undefined;
   title: string;
   countries: CountryCode[];
   fromDate: string | undefined;
@@ -51,6 +54,7 @@ function parseArgs(args: string[]): {
   autoOpen: boolean;
   addLogo: boolean;
   useIris: boolean;
+  addPortfolio: boolean;
 } {
   let title = "Series Plot";
   let countries: CountryCode[] = ["SE"];
@@ -100,12 +104,14 @@ function parseArgs(args: string[]): {
     }
   }
 
-  const finalIds =
-    useIris ? [IRIS_ID, BENCHMARK_ID] : ids.length > 0 ? ids : DEFAULT_IDS;
-  const finalTitle = useIris ? "Captor Iris Bond" : title;
+  const preset = useIris ? IRIS_SERIES : ids.length > 0 ? null : DEFAULT_SERIES;
+  const finalIds = preset ? preset.map((s) => s.id) : ids;
+  const presetNames = preset ? preset.map((s) => s.name) : undefined;
+  const finalTitle = useIris ? IRIS_SERIES[0]!.name : title;
 
   return {
     ids: finalIds,
+    presetNames,
     title: finalTitle,
     countries,
     fromDate,
@@ -114,6 +120,7 @@ function parseArgs(args: string[]): {
     autoOpen,
     addLogo,
     useIris,
+    addPortfolio: !useIris && ids.length === 0,
   };
 }
 
@@ -123,9 +130,8 @@ async function main(): Promise<void> {
   console.log("Fetching data from Captor API...");
   const raw = await fetchCaptorSeriesBatch(opts.ids);
 
-  const seriesNames = opts.useIris
-    ? ["Captor Iris Bond", "Benchmark Index"]
-    : raw.map((r) => r.title || `Series ${r.id.slice(0, 8)}`);
+  const seriesNames =
+    opts.presetNames ?? raw.map((r) => r.title || `Series ${r.id.slice(0, 8)}`);
   const series = raw.map((r, i) =>
     OpenTimeSeries.fromArrays(
       seriesNames[i] ?? r.title ?? `Series ${r.id.slice(0, 8)}`,
@@ -147,13 +153,30 @@ async function main(): Promise<void> {
     console.log(`Truncated to ${frame.firstIdx} .. ${frame.lastIdx}`);
   }
 
+  // Add portfolio timeseries only for default Captor preset (not Iris, not custom --ids)
+  if (opts.addPortfolio && frame.itemCount >= 2) {
+    const port = frame.makePortfolio("Portfolio (eq weights)", "eq_weights");
+    const portSeries = OpenTimeSeries.fromArrays(
+      "Portfolio (eq weights)",
+      port.dates,
+      port.values,
+      { countries: opts.countries },
+    );
+    frame.addTimeseries(portSeries);
+  }
+
+  const defaultFilename = opts.useIris
+    ? "iris_plot.html"
+    : opts.addPortfolio
+      ? "captor_plot.html"
+      : "plot.html";
   const plotPath = await plotSeries(frame, {
     title: opts.title,
     logoUrl: opts.addLogo
       ? "https://sales.captor.se/captor_logo_sv_1600_icketransparent.png"
       : undefined,
     addLogo: opts.addLogo,
-    filename: opts.filename,
+    filename: opts.filename ?? defaultFilename,
     autoOpen: opts.autoOpen,
   });
 

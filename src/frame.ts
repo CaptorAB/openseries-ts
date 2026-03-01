@@ -482,6 +482,18 @@ export class OpenFrame {
   }
 
   addTimeseries(series: OpenTimeSeries): this {
+    const sameDates =
+      series.tsdf.length === this.tsdf.dates.length &&
+      series.tsdf.every((r, i) => r.date === this.tsdf.dates[i]);
+    if (sameDates) {
+      const vals = this.tsdf.dates.map(
+        (d) => series.tsdf.find((x) => x.date === d)?.value ?? NaN,
+      );
+      this.tsdf.columns.push(ffill(vals));
+      this.columnLabels.push(series.label);
+      this.constituents.push(series);
+      return this;
+    }
     this.constituents.push(series);
     this.mergeSeries("outer");
     this.columnLabels = this.constituents.map((c) => c.label);

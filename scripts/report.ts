@@ -12,8 +12,9 @@
  *   npm run report -- --iris --title "Iris Bond Report"
  *
  * Options:
- *   --ids id1 id2 ...     Captor series IDs (alternative: --iris for Iris preset)
- *   --iris                Use Iris Bond + Benchmark preset IDs
+ *   --ids id1 id2 ...     Captor series IDs
+ *   --iris                Use Iris Bond + Benchmark preset (default when no args)
+ *   --captor              Use Captor Aster/Iris/Scilla preset
  *   --title "Title"       Report title
  *   --countries "SE,US"   Country codes for business-day metrics (default: SE)
  *   --from-date YYYY-MM-DD  Truncate to start from this date (tail the period)
@@ -27,14 +28,16 @@
  *   npm run report -- --ids id1 id2 --from-date 2020-06-01
  */
 
-const IRIS_ID = "5b72a10c23d27735104e0576";
-const BENCHMARK_ID = "63892890473ba6918f4ee954";
+const IRIS_SERIES = [
+  { id: "5b72a10c23d27735104e0576", name: "Captor Iris Bond" },
+  { id: "63892890473ba6918f4ee954", name: "Benchmark Index" },
+] as const;
 
-const DEFAULT_IDS = [
-  "638f681e0c2f4c8d28a13392",
-  "5b72a10c23d27735104e0576",
-  "5c1115fbce5b131cf0b224fc",
-];
+const DEFAULT_SERIES = [
+  { id: "638f681e0c2f4c8d28a13392", name: "Captor Aster Global High Yield" },
+  { id: "5b72a10c23d27735104e0576", name: "Captor Iris Bond" },
+  { id: "5c1115fbce5b131cf0b224fc", name: "Captor Scilla Global Equity" },
+] as const;
 
 import { existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -54,6 +57,7 @@ import type { CountryCode } from "../src/bizcalendar";
 
 function parseArgs(args: string[]): {
   ids: string[];
+  presetNames: string[] | undefined;
   title: string;
   countries: CountryCode[];
   fromDate: string | undefined;
@@ -62,6 +66,7 @@ function parseArgs(args: string[]): {
   autoOpen: boolean;
   addLogo: boolean;
   useIris: boolean;
+  isDefaultCaptor: boolean;
 } {
   let title = "Captor Portfolio Report";
   let countries: CountryCode[] = ["SE"];
@@ -72,6 +77,7 @@ function parseArgs(args: string[]): {
   let addLogo = true;
   const ids: string[] = [];
   let useIris = false;
+  let useCaptor = false;
 
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
@@ -99,6 +105,8 @@ function parseArgs(args: string[]): {
       addLogo = false;
     } else if (a === "--iris") {
       useIris = true;
+    } else if (a === "--captor") {
+      useCaptor = true;
     } else if (a === "--ids") {
       i++;
       while (i < args.length && !args[i]!.startsWith("--")) {
@@ -111,12 +119,15 @@ function parseArgs(args: string[]): {
     }
   }
 
-  const finalIds =
-    useIris ? [IRIS_ID, BENCHMARK_ID] : ids.length > 0 ? ids : DEFAULT_IDS;
-  const finalTitle = useIris ? "Captor Iris Bond" : title;
+  const preset = useIris ? IRIS_SERIES : useCaptor ? DEFAULT_SERIES : ids.length > 0 ? null : IRIS_SERIES;
+  const finalIds = preset ? preset.map((s) => s.id) : ids;
+  const presetNames = preset ? preset.map((s) => s.name) : undefined;
+  const effectiveUseIris = preset === IRIS_SERIES;
+  const finalTitle = effectiveUseIris ? IRIS_SERIES[0]!.name : title;
 
   return {
     ids: finalIds,
+    presetNames,
     title: finalTitle,
     countries,
     fromDate,
@@ -124,7 +135,8 @@ function parseArgs(args: string[]): {
     filename,
     autoOpen,
     addLogo,
-    useIris,
+    useIris: effectiveUseIris,
+    isDefaultCaptor: preset === DEFAULT_SERIES,
   };
 }
 
@@ -134,9 +146,8 @@ async function main(): Promise<void> {
   console.log("Fetching data from Captor API...");
   const raw = await fetchCaptorSeriesBatch(opts.ids);
 
-  const seriesNames = opts.useIris
-    ? ["Captor Iris Bond", "Benchmark Index"]
-    : raw.map((r) => r.title || `Series ${r.id.slice(0, 8)}`);
+  const seriesNames =
+    opts.presetNames ?? raw.map((r) => r.title || `Series ${r.id.slice(0, 8)}`);
   const series = raw.map((r, i) =>
     OpenTimeSeries.fromArrays(
       seriesNames[i] ?? r.title ?? `Series ${r.id.slice(0, 8)}`,
@@ -169,12 +180,17 @@ async function main(): Promise<void> {
   });
 
   const defaultDir = defaultOutputDir();
+  const defaultFilename = opts.useIris
+    ? "iris_report.html"
+    : opts.isDefaultCaptor
+      ? "captor_report.html"
+      : "report.html";
   const reportPath =
     opts.filename
       ? opts.filename.includes("/") || opts.filename.includes("\\")
         ? opts.filename
         : join(defaultDir, opts.filename)
-      : join(defaultDir, "report.html");
+      : join(defaultDir, defaultFilename);
 
   writeFileSync(reportPath, html, "utf-8");
 

@@ -27,7 +27,7 @@
     "check": "npm run lint && npm run typecheck",
     "report": "tsx scripts/report.ts",
     "report:iris": "tsx scripts/report.ts --iris",
-    "report:captor": "tsx scripts/report.ts",
+    "report:captor": "tsx scripts/report.ts --captor",
     "docs": "node -e \"require('fs').rmSync('docs',{recursive:true,force:true})\" && typedoc && node -e \"require('fs').writeFileSync('docs/.nojekyll','')\"",
     "plot": "tsx scripts/plot.ts",
     "plot:iris": "tsx scripts/plot.ts --iris",

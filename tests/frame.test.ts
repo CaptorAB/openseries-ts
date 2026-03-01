@@ -401,6 +401,19 @@ describe("OpenFrame", () => {
     expect(frame.columnLabels).toContain("C");
   });
 
+  it("addTimeseries with same dates appends column without merge (fast path)", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02", "2020-01-03"], [200, 201, 202]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const lenBefore = frame.length;
+    const s3 = OpenTimeSeries.fromArrays("C", ["2020-01-01", "2020-01-02", "2020-01-03"], [50, 55, 60]);
+    frame.addTimeseries(s3);
+    expect(frame.itemCount).toBe(3);
+    expect(frame.length).toBe(lenBefore);
+    expect(frame.columnLabels).toEqual(["A", "B", "C"]);
+    expect(frame.tsdf.columns[2]).toEqual([50, 55, 60]);
+  });
+
   it("makePortfolio max_div with identical series handles singular cov", () => {
     const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02", "2020-01-03"], [100, 101, 102]);
     const s2 = s1.fromDeepcopy();

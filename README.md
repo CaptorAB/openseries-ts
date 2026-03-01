@@ -136,6 +136,9 @@ Generates an HTML portfolio report from Captor API timeseries
 | `npm run report:iris` | Preset: Captor Iris Bond + Benchmark Index |
 | `npm run report:captor` | Same as `report` (default Captor IDs) |
 
+**Default output** (in `~/Documents`): `iris_report.html` (Iris preset), `captor_report.html`
+(default Captor preset), or `report.html` (custom `--ids`).
+
 **Options** (pass after `--`): `--ids id1 id2 ...`, `--iris`, `--title "Title"`,
 `--countries "SE,US"`, `--from-date YYYY-MM-DD`, `--to-date YYYY-MM-DD`,
 `--filename path`, `--no-open`, `--no-logo`.
@@ -151,12 +154,16 @@ npm run report:iris -- --from-date 2023-01-01 --to-date 2024-12-31 --no-open
 
 Generates a full-page HTML line chart of cumulative returns (100 base)
 from Captor API timeseries.
+With the default Captor preset (no `--ids`), an equal-weight portfolio series is included.
 
 | Command | Description |
 | --- | --- |
 | `npm run plot` | Plot with custom or default Captor series IDs |
 | `npm run plot:iris` | Preset: Captor Iris Bond + Benchmark Index |
 | `npm run plot:captor` | Same as `plot` |
+
+**Default output** (in `~/Documents`): `iris_plot.html` (Iris preset), `captor_plot.html`
+(default Captor preset), or `plot.html` (custom `--ids`).
 
 **Options** (pass after `--`): same as Report (`--ids`, `--iris`, `--title`,
 `--countries`, `--from-date`, `--to-date`, `--filename`, `--no-open`, `--no-logo`).

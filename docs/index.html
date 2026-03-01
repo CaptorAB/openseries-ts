@@ -159,6 +159,8 @@ Options: <code>title</code>, <code>logoUrl</code>, <code>addLogo</code>, <code>f
 </tr>
 </tbody>
 </table>
+<p><strong>Default output</strong> (in <code>~/Documents</code>): <code>iris_report.html</code> (Iris preset), <code>captor_report.html</code>
+(default Captor preset), or <code>report.html</code> (custom <code>--ids</code>).</p>
 <p><strong>Options</strong> (pass after <code>--</code>): <code>--ids id1 id2 ...</code>, <code>--iris</code>, <code>--title &quot;Title&quot;</code>,
 <code>--countries &quot;SE,US&quot;</code>, <code>--from-date YYYY-MM-DD</code>, <code>--to-date YYYY-MM-DD</code>,
 <code>--filename path</code>, <code>--no-open</code>, <code>--no-logo</code>.</p>
@@ -168,7 +170,8 @@ Options: <code>title</code>, <code>logoUrl</code>, <code>addLogo</code>, <code>f
 
 <h3 id="plot-script" class="tsd-anchor-link">Plot Script<a href="#plot-script" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>Generates a full-page HTML line chart of cumulative returns (100 base)
-from Captor API timeseries.</p>
+from Captor API timeseries.
+With the default Captor preset (no <code>--ids</code>), an equal-weight portfolio series is included.</p>
 <table>
 <thead>
 <tr>
@@ -191,6 +194,8 @@ from Captor API timeseries.</p>
 </tr>
 </tbody>
 </table>
+<p><strong>Default output</strong> (in <code>~/Documents</code>): <code>iris_plot.html</code> (Iris preset), <code>captor_plot.html</code>
+(default Captor preset), or <code>plot.html</code> (custom <code>--ids</code>).</p>
 <p><strong>Options</strong> (pass after <code>--</code>): same as Report (<code>--ids</code>, <code>--iris</code>, <code>--title</code>,
 <code>--countries</code>, <code>--from-date</code>, <code>--to-date</code>, <code>--filename</code>, <code>--no-open</code>, <code>--no-logo</code>).</p>
 <p><strong>Examples:</strong></p>

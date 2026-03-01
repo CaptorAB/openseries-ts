@@ -467,9 +467,14 @@ interface ReportOptions {
  * Analogous to Python openseries report_html(data: OpenFrame, ...).
  * The frame should have mergeSeries("inner") already applied.
  *
+ * Requires at least 2 constituents: the first N-1 are compared against the last
+ * (benchmark). Benchmark-relative metrics (Capture Ratio, Information Ratio, etc.)
+ * are empty for the benchmark series.
+ *
  * @param frame - OpenFrame with aligned series (mergeSeries("inner"))
  * @param options - Report options (title, logo). Countries come from frame.countries.
  * @returns HTML string
+ * @throws Error when frame has fewer than 2 constituents
  */
 declare function reportHtml(frame: OpenFrame, options?: ReportOptions): string;
 

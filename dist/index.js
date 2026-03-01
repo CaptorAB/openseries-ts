@@ -1213,6 +1213,16 @@ var OpenFrame = class {
     return { coefficient, intercept, rsquared };
   }
   addTimeseries(series) {
+    const sameDates = series.tsdf.length === this.tsdf.dates.length && series.tsdf.every((r, i) => r.date === this.tsdf.dates[i]);
+    if (sameDates) {
+      const vals = this.tsdf.dates.map(
+        (d) => series.tsdf.find((x) => x.date === d)?.value ?? NaN
+      );
+      this.tsdf.columns.push(ffill(vals));
+      this.columnLabels.push(series.label);
+      this.constituents.push(series);
+      return this;
+    }
     this.constituents.push(series);
     this.mergeSeries("outer");
     this.columnLabels = this.constituents.map((c) => c.label);
@@ -1834,6 +1844,9 @@ function computeAnnualReturns(dates, values) {
   return result;
 }
 function reportHtml(frame, options = {}) {
+  if (frame.itemCount < 2) {
+    throw new Error("OpenFrame must have at least 2 constituents to generate a report");
+  }
   const title = options.title ?? "Portfolio Report";
   const logoUrl = options.addLogo !== false ? options.logoUrl ?? DEFAULT_LOGO_URL : "";
   const countries = frame.countries;
@@ -1912,7 +1925,7 @@ function reportHtml(frame, options = {}) {
   stats.push({
     metric: "Capture Ratio (monthly)",
     values: captureRatios.map(
-      (v) => Number.isNaN(v) ? "" : formatNum(v)
+      (v, i) => i === benchmarkIdx ? "" : Number.isNaN(v) ? "" : formatNum(v)
     )
   });
   const worstMonths = series.map((s) => s.worstMonth());

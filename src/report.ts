@@ -75,11 +75,20 @@ export function computeCaptureRatioCagr(
  * Analogous to Python openseries report_html(data: OpenFrame, ...).
  * The frame should have mergeSeries("inner") already applied.
  *
+ * Requires at least 2 constituents: the first N-1 are compared against the last
+ * (benchmark). Benchmark-relative metrics (Capture Ratio, Information Ratio, etc.)
+ * are empty for the benchmark series.
+ *
  * @param frame - OpenFrame with aligned series (mergeSeries("inner"))
  * @param options - Report options (title, logo). Countries come from frame.countries.
  * @returns HTML string
+ * @throws Error when frame has fewer than 2 constituents
  */
 export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): string {
+  if (frame.itemCount < 2) {
+    throw new Error("OpenFrame must have at least 2 constituents to generate a report");
+  }
+
   const title = options.title ?? "Portfolio Report";
   const logoUrl = options.addLogo !== false ? (options.logoUrl ?? DEFAULT_LOGO_URL) : "";
   const countries = frame.countries;
@@ -170,8 +179,8 @@ export function reportHtml(frame: OpenFrame, options: ReportOptions = {}): strin
   const captureRatios = frame.captureRatio("both", benchmarkIdx, { freq: "ME" });
   stats.push({
     metric: "Capture Ratio (monthly)",
-    values: captureRatios.map((v) =>
-      Number.isNaN(v) ? "" : formatNum(v),
+    values: captureRatios.map((v, i) =>
+      i === benchmarkIdx ? "" : Number.isNaN(v) ? "" : formatNum(v),
     ),
   });
 

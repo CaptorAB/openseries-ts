@@ -89,13 +89,31 @@ describe("reportHtml", () => {
     expect(html.length).toBeGreaterThan(100);
   });
 
-  it("handles frame with single series", () => {
-    const s = OpenTimeSeries.fromArrays("Single", ["2020-01-01", "2020-01-02"], [100, 101]);
-    const frame = new OpenFrame([s], null, { countries: ["SE"] });
-    frame.mergeSeries("inner");
-    const html = reportHtml(frame);
-    expect(html).toContain("Single");
-    expect(html).toMatch(/<!DOCTYPE html>/i);
+  describe("minimum constituents validation", () => {
+    it("throws when frame has 0 constituents", () => {
+      const frame = new OpenFrame([], null, { countries: ["SE"] });
+      frame.mergeSeries("inner");
+      expect(() => reportHtml(frame)).toThrow(
+        "OpenFrame must have at least 2 constituents to generate a report",
+      );
+    });
+
+    it("throws when frame has 1 constituent", () => {
+      const s = OpenTimeSeries.fromArrays("Single", ["2020-01-01", "2020-01-02"], [100, 101]);
+      const frame = new OpenFrame([s], null, { countries: ["SE"] });
+      frame.mergeSeries("inner");
+      expect(() => reportHtml(frame)).toThrow(
+        "OpenFrame must have at least 2 constituents to generate a report",
+      );
+    });
+
+    it("succeeds when frame has exactly 2 constituents", () => {
+      const frame = frameForReport(2);
+      const html = reportHtml(frame);
+      expect(html).toMatch(/<!DOCTYPE html>/i);
+      expect(html).toContain("Asset 0");
+      expect(html).toContain("Asset 1");
+    });
   });
 
   it("produces valid HTML structure with Chart.js script", () => {
