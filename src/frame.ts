@@ -78,6 +78,13 @@ function alignSeriesToCommonDates(
   return { dates, valuesBySeries: ffilled };
 }
 
+/** Result of Ordinary Least Squares regression (ord_least_squares_fit). */
+export interface OrdLeastSquaresResult {
+  coefficient: number;
+  intercept: number;
+  rsquared: number;
+}
+
 /** Collection of aligned timeseries with portfolio and correlation methods. */
 export class OpenFrame {
   constituents: OpenTimeSeries[];
@@ -367,6 +374,68 @@ export class OpenFrame {
     const marketMean = mean(marketRets) * tf;
     const b = this.beta(assetColumn, marketColumn);
     return assetMean - riskfreeRate - b * (marketMean - riskfreeRate);
+  }
+
+  /**
+   * Ordinary Least Squares fit of y on x.
+   * Regresses tsdf column yColumn (dependent) on xColumn (explanatory).
+   * Matches Python openseries ord_least_squares_fit.
+   *
+   * @param yColumn - Column index of dependent variable y
+   * @param xColumn - Column index of exogenous variable x
+   * @param opts.fittedSeries - If true, add fitted values as new column (default true)
+   * @returns Object with coefficient (slope), intercept, and rsquared
+   */
+  ordLeastSquaresFit(
+    yColumn: number,
+    xColumn: number,
+    opts?: { fittedSeries?: boolean },
+  ): OrdLeastSquaresResult {
+    const fittedSeries = opts?.fittedSeries ?? true;
+    const yCol = this.tsdf.columns[yColumn];
+    const xCol = this.tsdf.columns[xColumn];
+    if (!yCol || !xCol) {
+      return { coefficient: NaN, intercept: NaN, rsquared: NaN };
+    }
+    const pairs: [number, number][] = [];
+    for (let i = 0; i < Math.min(yCol.length, xCol.length); i++) {
+      const yi = yCol[i];
+      const xi = xCol[i];
+      if (Number.isFinite(yi) && Number.isFinite(xi)) pairs.push([yi, xi]);
+    }
+    if (pairs.length < 2) {
+      return { coefficient: NaN, intercept: NaN, rsquared: NaN };
+    }
+    const n = pairs.length;
+    const my = pairs.reduce((s, [y]) => s + y, 0) / n;
+    const mx = pairs.reduce((s, [, x]) => s + x, 0) / n;
+    let cov = 0;
+    let vx = 0;
+    for (const [yi, xi] of pairs) {
+      cov += (yi - my) * (xi - mx);
+      vx += (xi - mx) ** 2;
+    }
+    const coefficient = vx > 0 ? cov / vx : NaN;
+    const intercept = Number.isFinite(coefficient) ? my - coefficient * mx : NaN;
+    let rsquared = NaN;
+    if (Number.isFinite(coefficient) && Number.isFinite(intercept)) {
+      let ssTot = 0;
+      let ssRes = 0;
+      for (const [yi, xi] of pairs) {
+        const yHat = intercept + coefficient * xi;
+        ssTot += (yi - my) ** 2;
+        ssRes += (yi - yHat) ** 2;
+      }
+      rsquared = ssTot > 0 ? 1 - ssRes / ssTot : NaN;
+    }
+    if (fittedSeries && Number.isFinite(coefficient) && Number.isFinite(intercept)) {
+      const fitted = xCol.map((xi) => (Number.isFinite(xi) ? intercept + coefficient * xi : NaN));
+      this.tsdf.columns.push(fitted);
+      const yLabel = this.columnLabels[yColumn] ?? "y";
+      const xLabel = this.columnLabels[xColumn] ?? "x";
+      this.columnLabels.push(`OLS fit (${yLabel} vs ${xLabel})`);
+    }
+    return { coefficient, intercept, rsquared };
   }
 
   addTimeseries(series: OpenTimeSeries): this {

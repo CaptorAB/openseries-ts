@@ -3,7 +3,7 @@ export {
   timeseriesChain,
   type DateRangeOptions,
 } from "./series";
-export { OpenFrame } from "./frame";
+export { OpenFrame, type OrdLeastSquaresResult } from "./frame";
 export {
   ReturnSimulation,
   randomGenerator,

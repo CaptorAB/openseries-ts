@@ -103,6 +103,50 @@ describe("OpenFrame", () => {
     expect(to9(frame.jensenAlpha(0, 1))).toBe("0.103227989");
   });
 
+  it("ordLeastSquaresFit returns coefficient, intercept, rsquared (perfect fit)", () => {
+    const x = [1, 2, 3, 4, 5];
+    const y = x.map((xi) => 2 + 3 * xi);
+    const s1 = OpenTimeSeries.fromArrays("x", ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"], x);
+    const s2 = OpenTimeSeries.fromArrays("y", ["2020-01-01", "2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"], y);
+    const frame = new OpenFrame([s1, s2]);
+    const r = frame.ordLeastSquaresFit(1, 0, { fittedSeries: false });
+    expect(r.coefficient).toBe(3);
+    expect(r.intercept).toBe(2);
+    expect(r.rsquared).toBe(1);
+  });
+
+  it("ordLeastSquaresFit with fittedSeries adds column", () => {
+    const x = [1, 2, 3];
+    const y = [5, 8, 11];
+    const s1 = OpenTimeSeries.fromArrays("x", ["2020-01-01", "2020-01-02", "2020-01-03"], x);
+    const s2 = OpenTimeSeries.fromArrays("y", ["2020-01-01", "2020-01-02", "2020-01-03"], y);
+    const frame = new OpenFrame([s1, s2]);
+    expect(frame.itemCount).toBe(2);
+    const r = frame.ordLeastSquaresFit(1, 0, { fittedSeries: true });
+    expect(r.coefficient).toBe(3);
+    expect(r.intercept).toBe(2);
+    expect(frame.tsdf.columns.length).toBe(3);
+    expect(frame.columnLabels[2]).toBe("OLS fit (y vs x)");
+    expect(frame.tsdf.columns[2]).toEqual([5, 8, 11]);
+  });
+
+  it("ordLeastSquaresFit defaults fittedSeries to true", () => {
+    const s1 = OpenTimeSeries.fromArrays("A", ["2020-01-01", "2020-01-02"], [1, 2]);
+    const s2 = OpenTimeSeries.fromArrays("B", ["2020-01-01", "2020-01-02"], [3, 5]);
+    const frame = new OpenFrame([s1, s2]);
+    frame.ordLeastSquaresFit(1, 0);
+    expect(frame.tsdf.columns.length).toBe(3);
+  });
+
+  it("ordLeastSquaresFit with simulatedFrame matches expected (seed 71)", () => {
+    const frame = simulatedFrame();
+    const r = frame.ordLeastSquaresFit(0, 1, { fittedSeries: false });
+    expect(Number.isFinite(r.coefficient)).toBe(true);
+    expect(Number.isFinite(r.intercept)).toBe(true);
+    expect(r.rsquared).toBeGreaterThanOrEqual(0);
+    expect(r.rsquared).toBeLessThanOrEqual(1);
+  });
+
   it("makePortfolio min_vol_overweight produces valid output (seed 71)", () => {
     const frame = simulatedFrame();
     const port = frame.makePortfolio("P", "min_vol_overweight");

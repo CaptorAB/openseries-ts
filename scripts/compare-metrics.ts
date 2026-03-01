@@ -2,52 +2,103 @@
 /**
  * Compare TypeScript openseries-ts metrics vs Python metrics (from data.json).
  *
- * Loads iris.json into OpenTimeSeries, computes metrics with the TS implementation,
- * and displays them side-by-side with Python-calculated metrics from data.json.
+ * Two comparison groups:
+ * 1. Single-asset metrics: Python OpenTimeSeries vs TS OpenTimeSeries for "Captor Iris Bond"
+ * 2. Frame comparison metrics: Python OpenFrame vs TS OpenFrame (tracking_error, info_ratio,
+ *    beta, jensen_alpha, capture_ratio_*, correlation, OLS coefficient) - all for Iris vs Benchmark
+ *
+ * Loads frame.json, builds OpenFrame. Single metrics from first constituent (Iris);
+ * comparison metrics from the frame. Compares with data.json["Captor Iris Bond"].
  *
  * Run: npx tsx scripts/compare-metrics.ts [--decimals=N]
- *       npm run compare-metrics -- --decimals=6
  *
- * Options:
- *   --decimals=N   Number of decimal places for comparison (default: 4)
- *   --decimals N   Same, space-separated
- *   COMPARE_DECIMALS   Env var (avoids npm -- when using npm run)
- *
- * Requires iris.json and data.json in ~/Documents (from the Python fetch snippet).
+ * Requires frame.json and data.json in ~/Documents (from the Python fetch snippet).
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import { OpenFrame } from "../src/frame";
 import { OpenTimeSeries } from "../src/series";
 
 const DOCUMENTS = join(homedir(), "Documents");
-const IRIS_PATH = join(DOCUMENTS, "iris.json");
+const FRAME_PATH = join(DOCUMENTS, "frame.json");
 const DATA_PATH = join(DOCUMENTS, "data.json");
+const IRIS_LABEL = "Captor Iris Bond";
 
-interface IrisJsonItem {
+/** Map Python (data.json) metric names to TypeScript tsMetrics keys. */
+const PY_TO_TS: Record<string, string> = {
+  "Simple return": "value_ret",
+  "Geometric return": "geo_ret",
+  "Arithmetic return": "arithmetic_ret",
+  "Volatility": "vol",
+  "Downside deviation": "downside_deviation",
+  "Return vol ratio": "ret_vol_ratio",
+  "Sortino ratio": "sortino_ratio",
+  "Z-score": "z_score",
+  "Skew": "skew",
+  "Kurtosis": "kurtosis",
+  "Positive share": "positive_share",
+  "VaR 95.0%": "var_down",
+  "CVaR 95.0%": "cvar_down",
+  "Imp vol from VaR 95%": "vol_from_var",
+  "Worst": "worst",
+  "Worst month": "worst_month",
+  "Max drawdown": "max_drawdown",
+  "first indices": "first_idx",
+  "last indices": "last_idx",
+  "observations": "length",
+  "span of days": "span_of_days",
+  // Frame comparison metrics (same key in both)
+  tracking_error: "tracking_error",
+  info_ratio: "info_ratio",
+  beta: "beta",
+  jensen_alpha: "jensen_alpha",
+  capture_ratio_up: "capture_ratio_up",
+  capture_ratio_down: "capture_ratio_down",
+  capture_ratio_both: "capture_ratio_both",
+  correlation: "correlation",
+  "OLS coefficient": "OLS coefficient",
+};
+
+interface FrameJsonItem {
   dates: string[];
   values: number[];
   name?: string;
   timeseries_id?: string;
+  instrument_id?: string;
+  valuetype?: string;
 }
 
-function loadSeriesFromIrisJson(path: string): OpenTimeSeries {
+function loadFrameFromJson(path: string): { irisSeries: OpenTimeSeries; frame: OpenFrame } {
   const raw = JSON.parse(readFileSync(path, "utf-8"));
-  const item: IrisJsonItem = Array.isArray(raw) ? raw[0] : raw;
-  return OpenTimeSeries.fromArrays(
-    item.name ?? "Series",
-    item.dates,
-    item.values,
-    { timeseriesId: item.timeseries_id ?? "", countries: "SE" },
+  const items: FrameJsonItem[] = Array.isArray(raw) ? raw : [raw];
+  if (items.length < 1) {
+    throw new Error("frame.json must contain at least one series");
+  }
+  const constituents = items.map((item) =>
+    OpenTimeSeries.fromArrays(
+      item.name ?? "Series",
+      item.dates,
+      item.values,
+      { timeseriesId: item.timeseries_id ?? "", countries: "SE" },
+    ),
   );
+  const frame = new OpenFrame(constituents).truncFrame();
+  frame.constituents.forEach((c) => c.toCumret());
+  frame.mergeSeries("outer");
+  const irisIdx = frame.columnLabels.indexOf(IRIS_LABEL);
+  const irisSeries = irisIdx >= 0 ? frame.constituents[irisIdx] : frame.constituents[0];
+  return { irisSeries, frame };
 }
 
 function loadPythonMetrics(path: string): Record<string, unknown> {
   const raw = JSON.parse(readFileSync(path, "utf-8"));
-  // data.json: {"Captor Iris Bond": {"value_ret": 0.025, "geo_ret": ..., ...}}
-  const col = typeof raw === "object" && raw !== null ? Object.values(raw)[0] : raw;
+  const col =
+    typeof raw === "object" && raw !== null && IRIS_LABEL in raw
+      ? raw[IRIS_LABEL]
+      : Object.values(raw)[0];
   return (col as Record<string, unknown>) ?? {};
 }
 
@@ -96,8 +147,8 @@ function parseDecimals(args: string[]): number {
 function main(): void {
   const decimals = parseDecimals(process.argv.slice(2));
 
-  if (!existsSync(IRIS_PATH)) {
-    console.error(`iris.json not found at ${IRIS_PATH}`);
+  if (!existsSync(FRAME_PATH)) {
+    console.error(`frame.json not found at ${FRAME_PATH}`);
     process.exit(1);
   }
   if (!existsSync(DATA_PATH)) {
@@ -105,39 +156,38 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log("Loading timeseries from iris.json...");
-  const series = loadSeriesFromIrisJson(IRIS_PATH);
+  console.log("Loading frame from frame.json...");
+  const { irisSeries, frame } = loadFrameFromJson(FRAME_PATH);
 
   console.log("Loading Python metrics from data.json...");
   const pythonMetrics = loadPythonMetrics(DATA_PATH);
 
-  // Compute TS metrics; map Python property names to TS getters/methods
+  // 1. Single-asset metrics: OpenTimeSeries("Captor Iris Bond") - TS vs Python
   const tsMetrics: Record<string, string | number> = {};
-
   const metrics: { pyKey: string; getTs: () => number | string }[] = [
-    { pyKey: "value_ret", getTs: () => series.valueRet() },
-    { pyKey: "geo_ret", getTs: () => series.geoRet() },
-    { pyKey: "arithmetic_ret", getTs: () => series.arithmeticRet() },
-    { pyKey: "vol", getTs: () => series.vol() },
-    { pyKey: "downside_deviation", getTs: () => series.downsideDeviation() },
-    { pyKey: "ret_vol_ratio", getTs: () => series.retVolRatio(0) },
-    { pyKey: "sortino_ratio", getTs: () => series.sortinoRatio(0, 0) },
-    { pyKey: "z_score", getTs: () => series.zScore() },
-    { pyKey: "skew", getTs: () => series.skew() },
-    { pyKey: "kurtosis", getTs: () => series.kurtosis() },
-    { pyKey: "positive_share", getTs: () => series.positiveShare() },
-    { pyKey: "var_down", getTs: () => series.varDown(0.95) },
-    { pyKey: "cvar_down", getTs: () => series.cvarDown(0.95) },
-    { pyKey: "vol_from_var", getTs: () => series.volFromVar(0.95) },
-    { pyKey: "worst", getTs: () => series.worst(1) },
-    { pyKey: "worst_month", getTs: () => series.worstMonth() },
-    { pyKey: "max_drawdown", getTs: () => series.maxDrawdown() },
-    { pyKey: "first_idx", getTs: () => series.firstIdx },
-    { pyKey: "last_idx", getTs: () => series.lastIdx },
-    { pyKey: "length", getTs: () => series.length },
-    { pyKey: "span_of_days", getTs: () => series.spanOfDays },
-    { pyKey: "yearfrac", getTs: () => series.yearfrac },
-    { pyKey: "periods_in_a_year", getTs: () => series.periodsInAYear },
+    { pyKey: "value_ret", getTs: () => irisSeries.valueRet() },
+    { pyKey: "geo_ret", getTs: () => irisSeries.geoRet() },
+    { pyKey: "arithmetic_ret", getTs: () => irisSeries.arithmeticRet() },
+    { pyKey: "vol", getTs: () => irisSeries.vol() },
+    { pyKey: "downside_deviation", getTs: () => irisSeries.downsideDeviation() },
+    { pyKey: "ret_vol_ratio", getTs: () => irisSeries.retVolRatio(0) },
+    { pyKey: "sortino_ratio", getTs: () => irisSeries.sortinoRatio(0, 0) },
+    { pyKey: "z_score", getTs: () => irisSeries.zScore() },
+    { pyKey: "skew", getTs: () => irisSeries.skew() },
+    { pyKey: "kurtosis", getTs: () => irisSeries.kurtosis() },
+    { pyKey: "positive_share", getTs: () => irisSeries.positiveShare() },
+    { pyKey: "var_down", getTs: () => irisSeries.varDown(0.95) },
+    { pyKey: "cvar_down", getTs: () => irisSeries.cvarDown(0.95) },
+    { pyKey: "vol_from_var", getTs: () => irisSeries.volFromVar(0.95) },
+    { pyKey: "worst", getTs: () => irisSeries.worst(1) },
+    { pyKey: "worst_month", getTs: () => irisSeries.worstMonth() },
+    { pyKey: "max_drawdown", getTs: () => irisSeries.maxDrawdown() },
+    { pyKey: "first_idx", getTs: () => irisSeries.firstIdx },
+    { pyKey: "last_idx", getTs: () => irisSeries.lastIdx },
+    { pyKey: "length", getTs: () => irisSeries.length },
+    { pyKey: "span_of_days", getTs: () => irisSeries.spanOfDays },
+    { pyKey: "yearfrac", getTs: () => irisSeries.yearfrac },
+    { pyKey: "periods_in_a_year", getTs: () => irisSeries.periodsInAYear },
   ];
 
   for (const { pyKey, getTs } of metrics) {
@@ -149,15 +199,44 @@ function main(): void {
     }
   }
 
-  // Build comparison table
-  const allKeys = new Set([
-    ...Object.keys(pythonMetrics),
-    ...Object.keys(tsMetrics),
-  ]);
-  const sortedKeys = [...allKeys].sort();
+  // 2. Frame comparison metrics: OpenFrame produces Iris-vs-Benchmark metrics
+  const irCol = frame.columnLabels.indexOf(IRIS_LABEL);
+  const bmkCol = frame.itemCount >= 2 ? frame.itemCount - 1 : -1;
+  if (irCol >= 0 && bmkCol >= 1 && irCol !== bmkCol) {
+    try {
+      const te = frame.trackingError(bmkCol);
+      tsMetrics["tracking_error"] = te[irCol];
+      const ir = frame.infoRatio(bmkCol);
+      tsMetrics["info_ratio"] = ir[irCol];
+      tsMetrics["beta"] = frame.beta(irCol, bmkCol);
+      tsMetrics["jensen_alpha"] = frame.jensenAlpha(irCol, bmkCol);
+      const capUp = frame.captureRatio("up", bmkCol);
+      tsMetrics["capture_ratio_up"] = capUp[irCol];
+      const capDown = frame.captureRatio("down", bmkCol);
+      tsMetrics["capture_ratio_down"] = capDown[irCol];
+      const capBoth = frame.captureRatio("both", bmkCol);
+      tsMetrics["capture_ratio_both"] = capBoth[irCol];
+      const corr = frame.correlMatrix();
+      tsMetrics["correlation"] = corr[irCol][bmkCol];
+      const ols = frame.ordLeastSquaresFit(irCol, bmkCol, { fittedSeries: false });
+      tsMetrics["OLS coefficient"] = ols.coefficient;
+    } catch (err) {
+      console.warn("Could not compute comparison metrics:", err);
+    }
+  }
+
+  // Build comparison table using mapping: Python key -> tsMetrics key
+  const pyKeys = Object.keys(pythonMetrics).filter(
+    (k) => pythonMetrics[k] != null && String(pythonMetrics[k]) !== "null",
+  );
+  const tsOnlyKeys = Object.keys(tsMetrics).filter(
+    (tk) => !Object.values(PY_TO_TS).includes(tk) && !pyKeys.includes(tk),
+  );
+  const sortedKeys = [...new Set([...pyKeys, ...tsOnlyKeys])].sort();
 
   const rows: string[] = [];
   let matches = 0;
+  let compared = 0;
 
   const col1 = 35;
   const col2 = 28;
@@ -172,15 +251,18 @@ function main(): void {
   rows.push(header);
   rows.push("=".repeat(col1 + col2 + col3 + col4));
 
-  for (const key of sortedKeys) {
-    const pyVal = pythonMetrics[key];
-    const tsVal = tsMetrics[key];
+  for (const pyKey of sortedKeys) {
+    const tsKey = PY_TO_TS[pyKey] ?? pyKey;
+    const pyVal = pythonMetrics[pyKey];
+    const tsVal = tsMetrics[tsKey];
+    const displayName = pyVal !== undefined ? pyKey : tsKey;
 
     const pyStr = formatForDisplay(pyVal, decimals);
     const tsStr = formatForDisplay(tsVal, decimals);
 
     let match = "";
     if (pyVal !== undefined && tsVal !== undefined) {
+      compared++;
       let matchStr = false;
       if (typeof pyVal === "number" && typeof tsVal === "number") {
         matchStr = roundToStr(pyVal, decimals) === roundToStr(tsVal, decimals);
@@ -194,7 +276,7 @@ function main(): void {
     }
 
     rows.push(
-      key.padEnd(col1) +
+      displayName.padEnd(col1) +
         pyStr.padEnd(col2) +
         tsStr.padEnd(col3) +
         match.padEnd(col4),
@@ -204,8 +286,12 @@ function main(): void {
   console.log("\n" + rows.join("\n"));
   console.log("=".repeat(col1 + col2 + col3 + col4));
 
-  const compared = sortedKeys.filter((k) => pythonMetrics[k] !== undefined && tsMetrics[k] !== undefined);
-  console.log(`\nMatched: ${matches}/${compared.length} (rounded to ${decimals} decimals or same date)`);
+  console.log(`\nMatched: ${matches}/${compared} (rounded to ${decimals} decimals or same date)`);
 }
 
-main();
+try {
+  main();
+} catch (err) {
+  console.error(err);
+  process.exit(1);
+}

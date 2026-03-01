@@ -210,6 +210,12 @@ declare class OpenTimeSeries {
  */
 declare function timeseriesChain(front: OpenTimeSeries, back: OpenTimeSeries, oldFee?: number): OpenTimeSeries;
 
+/** Result of Ordinary Least Squares regression (ord_least_squares_fit). */
+interface OrdLeastSquaresResult {
+    coefficient: number;
+    intercept: number;
+    rsquared: number;
+}
 /** Collection of aligned timeseries with portfolio and correlation methods. */
 declare class OpenFrame {
     constituents: OpenTimeSeries[];
@@ -247,6 +253,19 @@ declare class OpenFrame {
     infoRatio(baseColumn?: number): number[];
     beta(assetColumn: number, marketColumn: number): number;
     jensenAlpha(assetColumn: number, marketColumn: number, riskfreeRate?: number): number;
+    /**
+     * Ordinary Least Squares fit of y on x.
+     * Regresses tsdf column yColumn (dependent) on xColumn (explanatory).
+     * Matches Python openseries ord_least_squares_fit.
+     *
+     * @param yColumn - Column index of dependent variable y
+     * @param xColumn - Column index of exogenous variable x
+     * @param opts.fittedSeries - If true, add fitted values as new column (default true)
+     * @returns Object with coefficient (slope), intercept, and rsquared
+     */
+    ordLeastSquaresFit(yColumn: number, xColumn: number, opts?: {
+        fittedSeries?: boolean;
+    }): OrdLeastSquaresResult;
     addTimeseries(series: OpenTimeSeries): this;
     /** Filters tsdf to retain only business days. Mutates in place. */
     filterToBusinessDays(): this;
@@ -498,4 +517,4 @@ declare function sharpeplotHtml(simulated: SimulatedPortfolio[], frontier: Effic
  */
 declare function sharpeplot(simulated: SimulatedPortfolio[], frontier: EfficientFrontierPoint[], pointFrame: SharpePlotPoint[], options?: SharpePlotOptions): Promise<string>;
 
-export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type PlotSeriesOptions, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SharpePlotOptions, type SharpePlotPoint, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, getPreviousBusinessDayBeforeToday, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, plotSeries, plotSeriesHtml, preparePlotData, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, sharpeplot, sharpeplotHtml, simulatePortfolios, std, timeseriesChain };
+export { type CaptorSeriesResponse, type CountryCode, DateAlignmentError, type DateRangeOptions, type EfficientFrontierPoint, IncorrectArgumentComboError, InitialValueZeroError, type LiteralBizDayFreq, type LiteralPortfolioWeightings, MixedValuetypesError, NoWeightsError, OpenFrame, OpenTimeSeries, type OrdLeastSquaresResult, type PlotSeriesOptions, type RandomGenerator, type ReportOptions, ResampleDataLossError, type ResampleFreq, ReturnSimulation, type SharpePlotOptions, type SharpePlotPoint, type SimulatedPortfolio, ValueType, dateFix, dateToStr, efficientFrontier, fetchCaptorSeries, fetchCaptorSeriesBatch, filterBusinessDays, filterToBusinessDays, generateCalendarDateRange, getPreviousBusinessDayBeforeToday, isBusinessDay, lastBusinessDayOfMonth, lastBusinessDayOfYear, mean, offsetBusinessDays, pctChange, plotSeries, plotSeriesHtml, preparePlotData, prevBusinessDay, quantile, randomGenerator, reportHtml, resampleToPeriodEnd, sharpeplot, sharpeplotHtml, simulatePortfolios, std, timeseriesChain };
