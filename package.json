@@ -1,7 +1,10 @@
 {
-  "name": "openseries-ts",
+  "name": "@captorab/openseries-ts",
   "version": "1.0.0",
   "type": "module",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "description": "Tools for analyzing financial timeseries. TypeScript port of the Python openseries package.",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
