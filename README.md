@@ -14,7 +14,6 @@ const dates = ["2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"];
 const values = [100, 101, 102, 99];
 
 const series = OpenTimeSeries.fromArrays("My Series", dates, values);
-series.valueToRet();
 
 console.log(series.geoRet());    // CAGR
 console.log(series.vol());      // Annualized volatility
