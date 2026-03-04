@@ -2,9 +2,6 @@
   "name": "@captor/openseries-ts",
   "version": "1.0.0",
   "type": "module",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "description": "Tools for analyzing financial timeseries. TypeScript port of the Python openseries package.",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -50,9 +47,16 @@
     "volatility",
     "portfolio"
   ],
-  "author": "",
+  "author": "Captor Fund Management AB",
   "license": "BSD-3-Clause",
-  "repository": "github:CaptorAB/openseries-ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CaptorAB/openseries-ts.git"
+  },
   "homepage": "https://captorab.github.io/openseries-ts/",
   "bugs": "https://github.com/CaptorAB/openseries-ts/issues",
   "devDependencies": {
