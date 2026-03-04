@@ -124,6 +124,7 @@ Docs will be available at `https://<username>.github.io/<repo>/`.
 | `npm run typecheck` | TypeScript check (`tsc --noEmit`) |
 | `npm run check` | Run lint + typecheck |
 | `npm run docs` | Generate API docs to `docs/` (TypeDoc) |
+| `npm publish` | publish to npm |
 
 ### Report Script
 
