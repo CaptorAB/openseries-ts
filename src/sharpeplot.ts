@@ -7,7 +7,6 @@
 import { writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import open from "open";
 import type {
   SimulatedPortfolio,
   EfficientFrontierPoint,
@@ -300,6 +299,7 @@ export async function sharpeplot(
   writeFileSync(plotPath, html, "utf-8");
 
   if (autoOpen) {
+    const open = (await import("open")).default;
     await open(plotPath, { wait: false });
   }
 

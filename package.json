@@ -1,6 +1,6 @@
 {
   "name": "@captor/openseries-ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Tools for analyzing financial timeseries. TypeScript port of the Python openseries package.",
   "main": "dist/index.cjs",
@@ -77,6 +77,6 @@
   },
   "dependencies": {
     "date-holidays": "^3.26.8",
-    "open": "^8.0.0"
+    "open": "^8.4.0"
   }
 }

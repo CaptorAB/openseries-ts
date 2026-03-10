@@ -6,7 +6,6 @@
 import { writeFileSync, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import open from "open";
 import { OpenFrame } from "./frame";
 import { OpenTimeSeries } from "./series";
 import { ffill, pctChange } from "./utils";
@@ -295,6 +294,7 @@ export async function plotSeries(
   writeFileSync(plotPath, html, "utf-8");
 
   if (autoOpen) {
+    const open = (await import("open")).default;
     await open(plotPath, { wait: false });
   }
 
