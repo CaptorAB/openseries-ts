@@ -48,7 +48,6 @@ function defaultOutputDir(): string {
   const documents = join(home, "Documents");
   return existsSync(documents) ? documents : home;
 }
-import open from "open";
 import { fetchCaptorSeriesBatch } from "../src/captor";
 import { OpenTimeSeries } from "../src/series";
 import { OpenFrame } from "../src/frame";
@@ -199,6 +198,7 @@ async function main(): Promise<void> {
   console.log(`Report saved to ${reportPath}`);
   if (opts.autoOpen) {
     console.log("Opening in browser...");
+    const open = (await import("open")).default;
     await open(reportPath, { wait: false });
   }
 }
