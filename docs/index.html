@@ -10,7 +10,7 @@ TypeScript port of the
 <h2 id="features" class="tsd-anchor-link">Features<a href="#features" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ul>
 <li><strong>OpenTimeSeries</strong>: Single timeseries with risk metrics
-(CAGR, volatility, VaR, CVaR, Sortino ratio, max drawdown, etc.)</li>
+(CAGR, volatility, VaR, CVaR, Sortino ratio, max drawdown, autocorrelation, etc.)</li>
 <li><strong>OpenFrame</strong>: Multi-series comparison, correlation, portfolio construction,
 rebalancing</li>
 <li><strong>ReturnSimulation</strong>: Monte Carlo with reproducible seeds
@@ -33,6 +33,9 @@ or simulation output</li>
 <li><code>valueToRet()</code>, <code>toCumret()</code> - Convert price ↔ returns</li>
 <li><code>geoRet()</code>, <code>arithmeticRet()</code>, <code>vol()</code>, <code>varDown()</code>, <code>cvarDown()</code></li>
 <li><code>sortinoRatio()</code>, <code>retVolRatio()</code>, <code>maxDrawdown()</code>, <code>maxDrawdownBottomDate()</code>, <code>downsideDeviation()</code></li>
+<li><code>autocorr(lag?, opts?, squared?)</code> — lag-k autocorrelation of demeaned returns</li>
+<li><code>acf(lags, opts?, squared?)</code>, <code>pacf(lags, opts?, squared?)</code>, <code>partialAutocorr(lag?, opts?, squared?)</code></li>
+<li><code>ljungBox(lags, opts?, squared?)</code> — Ljung–Box test <code>(statistic, pvalue, lags)</code></li>
 <li><code>ewmaVolFunc()</code>, <code>ewmaVarFunc()</code> - EWMA risk measures</li>
 </ul>
 <h3 id="openframe" class="tsd-anchor-link">OpenFrame<a href="#openframe" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -41,6 +44,7 @@ or simulation output</li>
 <li><code>toDrawdownSeries()</code> - Convert aligned columns to drawdown (value/peak - 1)</li>
 <li><code>makePortfolio()</code> - Weighted portfolio (eq_weights, inv_vol, max_div, min_vol_overweight)</li>
 <li><code>correlMatrix()</code>, <code>trackingError()</code>, <code>infoRatio()</code>, <code>beta()</code>, <code>jensenAlpha()</code></li>
+<li><code>autocorr(lag?, squared?)</code> — per-constituent lag-k autocorrelation (<code>number[]</code>)</li>
 <li><code>maxDrawdown()</code>, <code>maxDrawdownBottomDate()</code> - Per-column drawdown metrics</li>
 <li><code>captureRatio(ratio, baseColumn?, opts?)</code> - CAGR-based capture vs benchmark
 (<code>opts.freq</code> optional; when omitted, uses frame data as-is)</li>

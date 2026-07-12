@@ -23,7 +23,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 ## Features
 
 - **OpenTimeSeries**: Single timeseries with risk metrics
-  (CAGR, volatility, VaR, CVaR, Sortino ratio, max drawdown, etc.)
+  (CAGR, volatility, VaR, CVaR, Sortino ratio, max drawdown, autocorrelation, etc.)
 - **OpenFrame**: Multi-series comparison, correlation, portfolio construction,
   rebalancing
 - **ReturnSimulation**: Monte Carlo with reproducible seeds
@@ -47,6 +47,9 @@ console.log(series.maxDrawdown()); // Max drawdown
 - `valueToRet()`, `toCumret()` - Convert price ↔ returns
 - `geoRet()`, `arithmeticRet()`, `vol()`, `varDown()`, `cvarDown()`
 - `sortinoRatio()`, `retVolRatio()`, `maxDrawdown()`, `maxDrawdownBottomDate()`, `downsideDeviation()`
+- `autocorr(lag?, opts?, squared?)` — lag-k autocorrelation of demeaned returns
+- `acf(lags, opts?, squared?)`, `pacf(lags, opts?, squared?)`, `partialAutocorr(lag?, opts?, squared?)`
+- `ljungBox(lags, opts?, squared?)` — Ljung–Box test `(statistic, pvalue, lags)`
 - `ewmaVolFunc()`, `ewmaVarFunc()` - EWMA risk measures
 
 ### OpenFrame
@@ -55,6 +58,7 @@ console.log(series.maxDrawdown()); // Max drawdown
 - `toDrawdownSeries()` - Convert aligned columns to drawdown (value/peak - 1)
 - `makePortfolio()` - Weighted portfolio (eq_weights, inv_vol, max_div, min_vol_overweight)
 - `correlMatrix()`, `trackingError()`, `infoRatio()`, `beta()`, `jensenAlpha()`
+- `autocorr(lag?, squared?)` — per-constituent lag-k autocorrelation (`number[]`)
 - `maxDrawdown()`, `maxDrawdownBottomDate()` - Per-column drawdown metrics
 - `captureRatio(ratio, baseColumn?, opts?)` - CAGR-based capture vs benchmark
   (`opts.freq` optional; when omitted, uses frame data as-is)

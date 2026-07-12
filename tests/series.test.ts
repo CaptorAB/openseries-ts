@@ -305,6 +305,74 @@ describe("OpenTimeSeries", () => {
       expect(to9(s.zScore())).toBe("-0.683595796");
     });
 
+    it("autocorr matches expected on cumret price series", () => {
+      const s = simulatedSeries("Test");
+      expect(to9(s.autocorr())).toBe("0.006631759");
+    });
+
+    it("autocorr matches expected on return series", () => {
+      const s = simulatedSeries("Test");
+      s.valueToRet();
+      expect(to9(s.autocorr())).toBe("0.007044207");
+    });
+
+    it("autocorr returns NaN when series is too short", () => {
+      const s = OpenTimeSeries.fromArrays(
+        "Short",
+        ["2020-01-01", "2020-01-02"],
+        [100, 101],
+      );
+      expect(s.autocorr()).toBeNaN();
+    });
+
+    it("acf(lags=5) matches expected", () => {
+      const s = simulatedSeries("Test");
+      const acf = s.acf(5);
+      expect(acf.lags).toEqual([0, 1, 2, 3, 4, 5]);
+      expect(acf.values[0]).toBe(1);
+      expect(to9(acf.values[1]!)).toBe("0.006631759");
+      expect(to9(acf.values[2]!)).toBe("-0.091794828");
+      expect(to9(acf.values[5]!)).toBe("0.011634972");
+    });
+
+    it("acf(lags=[0,1,3,5]) matches expected", () => {
+      const s = simulatedSeries("Test");
+      const acf = s.acf([0, 1, 3, 5]);
+      expect(acf.lags).toEqual([0, 1, 3, 5]);
+      expect(acf.values[0]).toBe(1);
+      expect(to9(acf.values[1]!)).toBe("0.006631759");
+      expect(to9(acf.values[3]!)).toBe("0.011634972");
+    });
+
+    it("pacf(lags=5) matches expected", () => {
+      const s = simulatedSeries("Test");
+      const pacf = s.pacf(5);
+      expect(pacf.lags).toEqual([0, 1, 2, 3, 4, 5]);
+      expect(pacf.values[0]).toBe(1);
+      expect(to9(pacf.values[1]!)).toBe("0.006631759");
+      expect(to9(pacf.values[2]!)).toBe("-0.091842847");
+      expect(to9(pacf.values[5]!)).toBe("0.026246036");
+    });
+
+    it("partialAutocorr matches expected", () => {
+      const s = simulatedSeries("Test");
+      expect(to9(s.partialAutocorr(1))).toBe("0.006631759");
+      expect(to9(s.partialAutocorr(2))).toBe("-0.091842847");
+    });
+
+    it("ljungBox(lags=5) matches expected", () => {
+      const s = simulatedSeries("Test");
+      const [stat, pval, lags] = s.ljungBox(5);
+      expect(lags).toEqual([1, 2, 3, 4, 5]);
+      expect(to9(stat)).toBe("4.579977756");
+      expect(to9(pval)).toBe("0.469254520");
+    });
+
+    it("ljungBox(lags=[]) returns (0, 1, [])", () => {
+      const s = simulatedSeries("Test");
+      expect(s.ljungBox([])).toEqual([0, 1, []]);
+    });
+
     it("volFromVar matches expected", () => {
       const s = simulatedSeries("Test");
       s.valueToRet();
