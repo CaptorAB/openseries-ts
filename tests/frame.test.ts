@@ -65,6 +65,20 @@ describe("OpenFrame", () => {
     expect(to9(corr[0][1])).toBe("0.024405730");
   });
 
+  it("autocorr aligns with constituent series (seed 71)", () => {
+    const frame = simulatedFrame();
+    const frameAc = frame.autocorr();
+    const seriesAc = frame.constituents.map((c) => c.autocorr());
+    expect(frameAc.map((v) => to9(v))).toEqual(seriesAc.map((v) => to9(v)));
+  });
+
+  it("autocorr(lag=2, squared=true) aligns with constituents", () => {
+    const frame = simulatedFrame();
+    const frameAc = frame.autocorr(2, true);
+    const seriesAc = frame.constituents.map((c) => c.autocorr(2, {}, true));
+    expect(frameAc.map((v) => to9(v))).toEqual(seriesAc.map((v) => to9(v)));
+  });
+
   it("makePortfolio with weights - first and last values match expected (seed 71)", () => {
     const frame = simulatedFrame();
     const port = frame.makePortfolio("P");

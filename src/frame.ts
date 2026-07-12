@@ -396,6 +396,13 @@ export class OpenFrame {
     });
   }
 
+  /**
+   * Lag-k autocorrelation per constituent. Matches Python OpenFrame.autocorr_func.
+   */
+  autocorr(lag = 1, squared = false): number[] {
+    return this.constituents.map((c) => c.autocorr(lag, {}, squared));
+  }
+
   trackingError(
     baseColumn = -1,
     _opts?: { fromDate?: string; toDate?: string },

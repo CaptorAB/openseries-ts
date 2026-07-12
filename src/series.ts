@@ -11,6 +11,15 @@ import {
   type ResampleFreq,
 } from "./bizcalendar";
 import {
+  acfFromReturns,
+  demeanedReturnsForAutocorr,
+  ljungBoxFromReturns,
+  pacfFromReturns,
+  pearsonAutocorrAtLag,
+  type LagSeries,
+  type LjungBoxResult,
+} from "./autocorr";
+import {
   cumProd,
   ffill,
   kurtosis,
@@ -22,6 +31,8 @@ import {
   skewness,
   std,
 } from "./utils";
+
+export type { LagSeries, LjungBoxResult } from "./autocorr";
 
 /**
  * Options to slice a series by date range.
@@ -469,6 +480,87 @@ export class OpenTimeSeries {
     const m = mean(rets);
     const s = std(rets, 1);
     return s === 0 ? NaN : (rets[rets.length - 1] - m) / s;
+  }
+
+  /**
+   * Lag-k autocorrelation of demeaned returns.
+   * For price series, returns are derived via pct_change; for return series,
+   * values are demeaned. Matches Python openseries autocorr_func.
+   */
+  autocorr(
+    lag = 1,
+    opts: DateRangeOptions = {},
+    squared = false,
+  ): number {
+    const { values } = this.sliceByRange(opts);
+    const rets = demeanedReturnsForAutocorr(
+      values,
+      this.valuetype,
+      squared,
+    );
+    return pearsonAutocorrAtLag(rets, lag);
+  }
+
+  /**
+   * Autocorrelation function for specified lags.
+   * If lags is an int, compute ACF from lag 0 through that value (inclusive).
+   */
+  acf(
+    lags: number | number[],
+    opts: DateRangeOptions = {},
+    squared = false,
+  ): LagSeries {
+    const { values } = this.sliceByRange(opts);
+    const rets = demeanedReturnsForAutocorr(
+      values,
+      this.valuetype,
+      squared,
+    );
+    return acfFromReturns(rets, lags);
+  }
+
+  /**
+   * Partial autocorrelation function for specified lags.
+   * If lags is an int, compute PACF from lag 0 through that value (inclusive).
+   */
+  pacf(
+    lags: number | number[],
+    opts: DateRangeOptions = {},
+    squared = false,
+  ): LagSeries {
+    const { values } = this.sliceByRange(opts);
+    const rets = demeanedReturnsForAutocorr(
+      values,
+      this.valuetype,
+      squared,
+    );
+    return pacfFromReturns(rets, lags);
+  }
+
+  /** Partial autocorrelation at a given lag. */
+  partialAutocorr(
+    lag = 1,
+    opts: DateRangeOptions = {},
+    squared = false,
+  ): number {
+    const result = this.pacf(lag, opts, squared);
+    const idx = result.lags.indexOf(lag);
+    return idx >= 0 ? result.values[idx]! : NaN;
+  }
+
+  /** Ljung-Box test for autocorrelation at the given lags. */
+  ljungBox(
+    lags: number | number[],
+    opts: DateRangeOptions = {},
+    squared = false,
+  ): LjungBoxResult {
+    const { values } = this.sliceByRange(opts);
+    const rets = demeanedReturnsForAutocorr(
+      values,
+      this.valuetype,
+      squared,
+    );
+    return ljungBoxFromReturns(rets, lags);
   }
 
   volFromVar(level = 0.95, opts: DateRangeOptions = {}): number {
