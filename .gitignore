@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+junit.xml
 .mypy_cache/
 *.log
 .DS_Store

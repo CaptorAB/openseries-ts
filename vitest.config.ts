@@ -7,9 +7,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     globals: true,
+    reporters: ["default", "junit"],
+    outputFile: {
+      junit: "./junit.xml",
+    },
     coverage: {
       provider: "istanbul",
-      reporter: ["text", "text-summary"],
+      reporter: ["text", "text-summary", "lcov", "cobertura"],
       include: ["src/**/*.ts"],
       exclude: [
         "src/**/*.d.ts",

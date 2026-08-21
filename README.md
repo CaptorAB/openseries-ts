@@ -1,5 +1,14 @@
 # openseries (TypeScript)
 
+[![npm version](https://img.shields.io/npm/v/@captor/openseries-ts.svg)](https://www.npmjs.com/package/@captor/openseries-ts)
+[![Node version](https://img.shields.io/badge/node-%3E%3D22-brightgreen)](https://nodejs.org/)
+[![GitHub Action Test Suite](https://github.com/CaptorAB/openseries-ts/actions/workflows/test.yml/badge.svg)](https://github.com/CaptorAB/openseries-ts/actions/workflows/test.yml)
+[![codecov](https://img.shields.io/codecov/c/gh/CaptorAB/openseries-ts?logo=codecov)](https://codecov.io/gh/CaptorAB/openseries-ts/branch/master)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://captorab.github.io/openseries-ts/)
+[![npm](https://img.shields.io/badge/package%20manager-npm-cb3837)](https://www.npmjs.com/)
+[![ESLint](https://img.shields.io/badge/linter-eslint-4B32C3)](https://eslint.org/)
+[![GitHub License](https://img.shields.io/github/license/CaptorAB/openseries-ts)](https://github.com/CaptorAB/openseries-ts/blob/master/LICENSE.md)
+
 Tools for analyzing financial timeseries of a single asset or a group of assets.
 Designed for daily or less frequent data.
 TypeScript port of the
