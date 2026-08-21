@@ -5,7 +5,7 @@
 [![GitHub Action Test Suite](https://github.com/CaptorAB/openseries-ts/actions/workflows/test.yml/badge.svg)](https://github.com/CaptorAB/openseries-ts/actions/workflows/test.yml)
 [![codecov](https://img.shields.io/codecov/c/gh/CaptorAB/openseries-ts?logo=codecov)](https://codecov.io/gh/CaptorAB/openseries-ts/branch/master)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://captorab.github.io/openseries-ts/)
-[![npm](https://img.shields.io/badge/package%20manager-npm-cb3837)](https://www.npmjs.com/)
+[![npm](https://img.shields.io/badge/package%20manager-npm%20%3E%3D12-cb3837)](https://www.npmjs.com/)
 [![ESLint](https://img.shields.io/badge/linter-eslint-4B32C3)](https://eslint.org/)
 [![GitHub License](https://img.shields.io/github/license/CaptorAB/openseries-ts)](https://github.com/CaptorAB/openseries-ts/blob/master/LICENSE.md)
 
@@ -14,19 +14,33 @@ Designed for daily or less frequent data.
 TypeScript port of the
 [Python openseries](https://pypi.org/project/openseries/) package.
 
+## Installation
+
+```bash
+npm install @captor/openseries-ts
+```
+
+The published package requires **Node.js 22** or later.
+
+To develop this repository you need **npm 12+** and Node.js **22, 24, or 26**
+(`^22.22.2 || ^24.15.0 || >=26.0.0`). Those versions are enforced via
+`package.json` `engines`, `devEngines`, and `packageManager` (`npm@12.0.2`).
+CI runs the test suite on Node 22, 24, and 26.
+
 ## Quick Start
 
 ```typescript
-import { OpenTimeSeries } from "openseries-ts";
+import { OpenTimeSeries } from "@captor/openseries-ts";
 
 const dates = ["2020-01-02", "2020-01-03", "2020-01-06", "2020-01-07"];
 const values = [100, 101, 102, 99];
 
 const series = OpenTimeSeries.fromArrays("My Series", dates, values);
 
-console.log(series.geoRet());    // CAGR
-console.log(series.vol());      // Annualized volatility
+console.log(series.geoRet());      // CAGR
+console.log(series.vol());        // Annualized volatility
 console.log(series.maxDrawdown()); // Max drawdown
+console.log(series.autocorr());   // lag-1 autocorrelation of demeaned returns
 ```
 
 ## Features
