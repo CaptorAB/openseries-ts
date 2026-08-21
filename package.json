@@ -60,7 +60,7 @@
   "homepage": "https://captorab.github.io/openseries-ts/",
   "bugs": "https://github.com/CaptorAB/openseries-ts/issues",
   "devDependencies": {
-    "@types/node": "^20.10.0",
+    "@types/node": "^24.13.3",
     "@vitest/coverage-istanbul": "^4.0.18",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
@@ -74,6 +74,23 @@
   },
   "engines": {
     "node": ">=22"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^22.22.2 || ^24.15.0 || >=26.0.0",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": ">=12",
+      "onFail": "error"
+    }
+  },
+  "packageManager": "npm@12.0.2",
+  "allowScripts": {
+    "esbuild": true,
+    "fsevents": true
   },
   "overrides": {
     "esbuild": ">=0.28.1"

@@ -8,7 +8,11 @@ export interface LagSeries {
 }
 
 /** Result of the Ljung-Box test. */
-export type LjungBoxResult = [statistic: number, pvalue: number, lags: number[]];
+export type LjungBoxResult = [
+  statistic: number,
+  pvalue: number,
+  lags: number[],
+];
 
 /** Return demeaned return series for autocorrelation analysis. */
 export function demeanedReturnsForAutocorr(
@@ -201,5 +205,7 @@ function logGamma(z: number): number {
   let x = c[0]!;
   for (let i = 1; i < g + 2; i++) x += c[i]! / (z + i);
   const t = z + g + 0.5;
-  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+  return (
+    0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x)
+  );
 }

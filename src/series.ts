@@ -487,17 +487,9 @@ export class OpenTimeSeries {
    * For price series, returns are derived via pct_change; for return series,
    * values are demeaned. Matches Python openseries autocorr_func.
    */
-  autocorr(
-    lag = 1,
-    opts: DateRangeOptions = {},
-    squared = false,
-  ): number {
+  autocorr(lag = 1, opts: DateRangeOptions = {}, squared = false): number {
     const { values } = this.sliceByRange(opts);
-    const rets = demeanedReturnsForAutocorr(
-      values,
-      this.valuetype,
-      squared,
-    );
+    const rets = demeanedReturnsForAutocorr(values, this.valuetype, squared);
     return pearsonAutocorrAtLag(rets, lag);
   }
 
@@ -511,11 +503,7 @@ export class OpenTimeSeries {
     squared = false,
   ): LagSeries {
     const { values } = this.sliceByRange(opts);
-    const rets = demeanedReturnsForAutocorr(
-      values,
-      this.valuetype,
-      squared,
-    );
+    const rets = demeanedReturnsForAutocorr(values, this.valuetype, squared);
     return acfFromReturns(rets, lags);
   }
 
@@ -529,11 +517,7 @@ export class OpenTimeSeries {
     squared = false,
   ): LagSeries {
     const { values } = this.sliceByRange(opts);
-    const rets = demeanedReturnsForAutocorr(
-      values,
-      this.valuetype,
-      squared,
-    );
+    const rets = demeanedReturnsForAutocorr(values, this.valuetype, squared);
     return pacfFromReturns(rets, lags);
   }
 
@@ -555,11 +539,7 @@ export class OpenTimeSeries {
     squared = false,
   ): LjungBoxResult {
     const { values } = this.sliceByRange(opts);
-    const rets = demeanedReturnsForAutocorr(
-      values,
-      this.valuetype,
-      squared,
-    );
+    const rets = demeanedReturnsForAutocorr(values, this.valuetype, squared);
     return ljungBoxFromReturns(rets, lags);
   }
 
