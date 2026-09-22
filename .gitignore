@@ -8,3 +8,4 @@ junit.xml
 .env
 .env.local
 .nvmrc
+.vscode/
