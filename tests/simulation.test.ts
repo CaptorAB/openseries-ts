@@ -73,6 +73,32 @@ describe("ReturnSimulation", () => {
     });
   });
 
+  describe("default parameters", () => {
+    it("fromNormal works with default trading_days_in_year and no seed", () => {
+      const sim = ReturnSimulation.fromNormal(1, 0.05, 0.1, 50);
+      expect(sim.tradingDaysInYear).toBe(252);
+      expect(sim.dframe[0]).toHaveLength(50);
+    });
+
+    it("fromGbm works with default trading_days_in_year and no seed", () => {
+      const sim = ReturnSimulation.fromGbm(1, 0.05, 0.1, 50);
+      expect(sim.tradingDaysInYear).toBe(252);
+      expect(sim.dframe[0]).toHaveLength(50);
+    });
+
+    it("fromLognormal works with default trading_days_in_year and no seed", () => {
+      const sim = ReturnSimulation.fromLognormal(1, 0.05, 0.1, 50);
+      expect(sim.tradingDaysInYear).toBe(252);
+      expect(sim.dframe[0]).toHaveLength(50);
+    });
+
+    it("fromMertonJumpGbm works with default jump and year parameters and no seed", () => {
+      const sim = ReturnSimulation.fromMertonJumpGbm(1, 50, 0.05, 0.1, 0.1);
+      expect(sim.tradingDaysInYear).toBe(252);
+      expect(sim.dframe[0]).toHaveLength(50);
+    });
+  });
+
   describe("processes - numerical results (seed=71)", () => {
     const to9 = (x: number) => x.toFixed(9);
 

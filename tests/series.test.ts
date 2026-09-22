@@ -151,6 +151,24 @@ describe("OpenTimeSeries", () => {
     expect(ret).toBeNaN();
   });
 
+  it("risk metrics return their too-short-data sentinel for a single-point series", () => {
+    const series = OpenTimeSeries.fromArrays("Test", ["2020-01-01"], [100]);
+    expect(series.vol()).toBeNaN();
+    expect(series.maxDrawdown()).toBe(0);
+    expect(series.varDown()).toBeNaN();
+    expect(series.cvarDown()).toBeNaN();
+    expect(series.downsideDeviation()).toBeNaN();
+    expect(series.positiveShare()).toBeNaN();
+    expect(series.worst()).toBeNaN();
+    expect(series.skew()).toBeNaN();
+    expect(series.kurtosis()).toBeNaN();
+    expect(series.zScore()).toBeNaN();
+    expect(series.volFromVar()).toBeNaN();
+    expect(series.worstMonth()).toBeNaN();
+    expect(series.geoRet()).toBeNaN();
+    expect(series.arithmeticRet()).toBeNaN();
+  });
+
   it("converts to returns and back", () => {
     const dates = ["2020-01-01", "2020-01-02", "2020-01-03"];
     const values = [100, 105, 102];
