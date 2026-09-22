@@ -1,6 +1,7 @@
 import {
   DateAlignmentError,
   InitialValueZeroError,
+  InvalidArgumentError,
   ResampleDataLossError,
   ValueType,
 } from "./types";
@@ -156,7 +157,7 @@ export class OpenTimeSeries {
   ): OpenTimeSeries {
     const idx = options?.columnIndex ?? 0;
     const col = dateColumns.columns[idx];
-    if (!col) throw new Error("Column index out of range");
+    if (!col) throw new InvalidArgumentError("Column index out of range");
     return OpenTimeSeries.fromArrays(col.name, dateColumns.dates, col.values, {
       valuetype: options?.valuetype,
       countries: options?.countries,

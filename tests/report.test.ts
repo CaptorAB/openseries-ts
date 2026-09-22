@@ -6,6 +6,7 @@ import {
 } from "../src/report";
 import { OpenFrame } from "../src/frame";
 import { OpenTimeSeries } from "../src/series";
+import { IncorrectArgumentComboError } from "../src/types";
 
 /** Creates a minimal frame with positive price-like values for report tests. */
 function frameForReport(numSeries = 2): OpenFrame {
@@ -106,6 +107,7 @@ describe("reportHtml", () => {
       expect(() => reportHtml(frame)).toThrow(
         "OpenFrame must have at least 2 constituents to generate a report",
       );
+      expect(() => reportHtml(frame)).toThrow(IncorrectArgumentComboError);
     });
 
     it("throws when frame has 1 constituent", () => {

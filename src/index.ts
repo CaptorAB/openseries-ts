@@ -50,6 +50,8 @@ export {
   NoWeightsError,
   IncorrectArgumentComboError,
   ResampleDataLossError,
+  InvalidArgumentError,
+  CaptorApiError,
 } from "./types";
 export { mean, std, quantile, pctChange } from "./utils";
 export type { LagSeries, LjungBoxResult } from "./autocorr";

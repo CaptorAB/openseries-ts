@@ -77,3 +77,17 @@ export class ResampleDataLossError extends Error {
     this.name = "ResampleDataLossError";
   }
 }
+
+export class InvalidArgumentError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidArgumentError";
+  }
+}
+
+export class CaptorApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CaptorApiError";
+  }
+}

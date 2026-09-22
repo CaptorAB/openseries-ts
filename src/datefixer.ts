@@ -1,3 +1,5 @@
+import { InvalidArgumentError } from "./types";
+
 /** Normalizes string or Date input to a Date. */
 export function dateFix(input: string | Date): Date {
   if (typeof input === "string") {
@@ -17,7 +19,7 @@ export function generateCalendarDateRange(
   options?: { start?: string; end?: string },
 ): string[] {
   if (tradingDays < 1) {
-    throw new Error("trading_days must be greater than zero");
+    throw new InvalidArgumentError("trading_days must be greater than zero");
   }
   const result: string[] = [];
   if (options?.end) {

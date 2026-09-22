@@ -4,6 +4,7 @@ import { ValueType } from "../src/types";
 import {
   DateAlignmentError,
   InitialValueZeroError,
+  InvalidArgumentError,
   ResampleDataLossError,
 } from "../src/types";
 import { simulatedSeries } from "./fixtures";
@@ -48,6 +49,9 @@ describe("OpenTimeSeries", () => {
         dates: ["2020-01-01"],
         columns: [{ name: "A", values: [100] }],
       };
+      expect(() =>
+        OpenTimeSeries.fromDateColumns(dateColumns, { columnIndex: 5 }),
+      ).toThrow(InvalidArgumentError);
       expect(() =>
         OpenTimeSeries.fromDateColumns(dateColumns, { columnIndex: 5 }),
       ).toThrow("Column index out of range");

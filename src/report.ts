@@ -8,6 +8,7 @@ import { OpenFrame } from "./frame";
 import { OpenTimeSeries } from "./series";
 import { ffill, pctChange } from "./utils";
 import { lastBusinessDayOfMonth, lastBusinessDayOfYear } from "./bizcalendar";
+import { IncorrectArgumentComboError } from "./types";
 
 export interface ReportOptions {
   title?: string;
@@ -88,14 +89,14 @@ export function computeCaptureRatioCagr(
  * @param frame - OpenFrame with aligned series (mergeSeries("inner"))
  * @param options - Report options (title, logo). Countries come from frame.countries.
  * @returns HTML string
- * @throws Error when frame has fewer than 2 constituents
+ * @throws {IncorrectArgumentComboError} when frame has fewer than 2 constituents
  */
 export function reportHtml(
   frame: OpenFrame,
   options: ReportOptions = {},
 ): string {
   if (frame.itemCount < 2) {
-    throw new Error(
+    throw new IncorrectArgumentComboError(
       "OpenFrame must have at least 2 constituents to generate a report",
     );
   }
