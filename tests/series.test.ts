@@ -4,6 +4,7 @@ import { ValueType } from "../src/types";
 import {
   DateAlignmentError,
   InitialValueZeroError,
+  InvalidArgumentError,
   ResampleDataLossError,
 } from "../src/types";
 import { simulatedSeries } from "./fixtures";
@@ -48,6 +49,9 @@ describe("OpenTimeSeries", () => {
         dates: ["2020-01-01"],
         columns: [{ name: "A", values: [100] }],
       };
+      expect(() =>
+        OpenTimeSeries.fromDateColumns(dateColumns, { columnIndex: 5 }),
+      ).toThrow(InvalidArgumentError);
       expect(() =>
         OpenTimeSeries.fromDateColumns(dateColumns, { columnIndex: 5 }),
       ).toThrow("Column index out of range");
@@ -145,6 +149,24 @@ describe("OpenTimeSeries", () => {
       toDate: "2020-01-02",
     });
     expect(ret).toBeNaN();
+  });
+
+  it("risk metrics return their too-short-data sentinel for a single-point series", () => {
+    const series = OpenTimeSeries.fromArrays("Test", ["2020-01-01"], [100]);
+    expect(series.vol()).toBeNaN();
+    expect(series.maxDrawdown()).toBe(0);
+    expect(series.varDown()).toBeNaN();
+    expect(series.cvarDown()).toBeNaN();
+    expect(series.downsideDeviation()).toBeNaN();
+    expect(series.positiveShare()).toBeNaN();
+    expect(series.worst()).toBeNaN();
+    expect(series.skew()).toBeNaN();
+    expect(series.kurtosis()).toBeNaN();
+    expect(series.zScore()).toBeNaN();
+    expect(series.volFromVar()).toBeNaN();
+    expect(series.worstMonth()).toBeNaN();
+    expect(series.geoRet()).toBeNaN();
+    expect(series.arithmeticRet()).toBeNaN();
   });
 
   it("converts to returns and back", () => {
@@ -330,9 +352,9 @@ describe("OpenTimeSeries", () => {
       const acf = s.acf(5);
       expect(acf.lags).toEqual([0, 1, 2, 3, 4, 5]);
       expect(acf.values[0]).toBe(1);
-      expect(to9(acf.values[1]!)).toBe("0.006631759");
-      expect(to9(acf.values[2]!)).toBe("-0.091794828");
-      expect(to9(acf.values[5]!)).toBe("0.011634972");
+      expect(to9(acf.values[1])).toBe("0.006631759");
+      expect(to9(acf.values[2])).toBe("-0.091794828");
+      expect(to9(acf.values[5])).toBe("0.011634972");
     });
 
     it("acf(lags=[0,1,3,5]) matches expected", () => {
@@ -340,8 +362,8 @@ describe("OpenTimeSeries", () => {
       const acf = s.acf([0, 1, 3, 5]);
       expect(acf.lags).toEqual([0, 1, 3, 5]);
       expect(acf.values[0]).toBe(1);
-      expect(to9(acf.values[1]!)).toBe("0.006631759");
-      expect(to9(acf.values[3]!)).toBe("0.011634972");
+      expect(to9(acf.values[1])).toBe("0.006631759");
+      expect(to9(acf.values[3])).toBe("0.011634972");
     });
 
     it("pacf(lags=5) matches expected", () => {
@@ -349,9 +371,9 @@ describe("OpenTimeSeries", () => {
       const pacf = s.pacf(5);
       expect(pacf.lags).toEqual([0, 1, 2, 3, 4, 5]);
       expect(pacf.values[0]).toBe(1);
-      expect(to9(pacf.values[1]!)).toBe("0.006631759");
-      expect(to9(pacf.values[2]!)).toBe("-0.091842847");
-      expect(to9(pacf.values[5]!)).toBe("0.026246036");
+      expect(to9(pacf.values[1])).toBe("0.006631759");
+      expect(to9(pacf.values[2])).toBe("-0.091842847");
+      expect(to9(pacf.values[5])).toBe("0.026246036");
     });
 
     it("partialAutocorr matches expected", () => {

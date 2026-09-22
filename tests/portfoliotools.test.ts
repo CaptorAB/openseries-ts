@@ -22,7 +22,7 @@ describe("simulatePortfolios", () => {
     expect(sims.length).toBeGreaterThanOrEqual(0);
   });
 
-  it("handles constant returns (covers vol=0 branch)", () => {
+  it("handles zero-variance returns (covers vol=0 branch)", () => {
     const dates = [
       "2020-01-01",
       "2020-01-02",
@@ -30,18 +30,14 @@ describe("simulatePortfolios", () => {
       "2020-01-06",
       "2020-01-07",
     ];
-    const s1 = OpenTimeSeries.fromArrays("A", dates, [100, 101, 102, 103, 104]);
-    const s2 = OpenTimeSeries.fromArrays("B", dates, [100, 101, 102, 103, 104]);
-    s1.valueToRet();
-    s2.valueToRet();
+    // Perfectly flat prices produce identically-zero returns every period,
+    // so portfolio variance (and thus vol) is exactly 0 regardless of weights.
+    const s1 = OpenTimeSeries.fromArrays("A", dates, [100, 100, 100, 100, 100]);
+    const s2 = OpenTimeSeries.fromArrays("B", dates, [100, 100, 100, 100, 100]);
     const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
-    frame.mergeSeries("inner");
     const sims = simulatePortfolios(frame, 10, 71);
     expect(sims.length).toBeGreaterThan(0);
-    // With identical returns, portfolio vol is 0, sharpe gets 0 from vol===0 branch
-    expect(sims.every((s) => s.stdev >= 0 && Number.isFinite(s.sharpe))).toBe(
-      true,
-    );
+    expect(sims.every((s) => s.stdev === 0 && s.sharpe === 0)).toBe(true);
   });
 
   it("first portfolio ret, stdev, sharpe match expected (normal 0.07/0.15, seed 71)", () => {
@@ -83,6 +79,32 @@ describe("efficientFrontier", () => {
     expect(ef.maxSharpe).toBeDefined();
   });
 
+  it("works with default numPorts, seed, and frontierPoints", () => {
+    const frame = simulatedFrame({
+      meanRet: 0.07,
+      meanVol: 0.15,
+      process: "normal",
+    });
+    const ef = efficientFrontier(frame);
+    expect(ef.frontier.length).toBeGreaterThanOrEqual(1);
+    expect(ef.simulated.length).toBeGreaterThan(0);
+  });
+
+  it("returns an empty frontier for a singular covariance matrix (duplicate assets)", () => {
+    const dates = Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(2020, 0, 1 + i);
+      return d.toISOString().slice(0, 10);
+    });
+    const values = dates.map((_, i) => 100 + i + (i % 3));
+    // Two constituents with identical values make the covariance matrix
+    // singular, so the analytic solver can't find a well-defined frontier.
+    const s1 = OpenTimeSeries.fromArrays("A", dates, values);
+    const s2 = OpenTimeSeries.fromArrays("B", dates, values);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const ef = efficientFrontier(frame, 100, 71, 10);
+    expect(ef.frontier).toEqual([]);
+  });
+
   it("works with RTRN constituents (uses returns directly)", () => {
     const sim = ReturnSimulation.fromGbm(3, 0.05, 0.1, 252, 252, 71);
     const dc = sim.toDateColumns("Asset", { end: "2020-12-31" });
@@ -105,11 +127,11 @@ describe("efficientFrontier", () => {
     });
     const ef = efficientFrontier(frame, 500, 71, 25);
     for (let i = 1; i < ef.frontier.length; i++) {
-      expect(ef.frontier[i]!.stdev).toBeGreaterThanOrEqual(
-        ef.frontier[i - 1]!.stdev - 1e-9,
+      expect(ef.frontier[i].stdev).toBeGreaterThanOrEqual(
+        ef.frontier[i - 1].stdev - 1e-9,
       );
-      expect(ef.frontier[i]!.ret).toBeGreaterThanOrEqual(
-        ef.frontier[i - 1]!.ret - 1e-9,
+      expect(ef.frontier[i].ret).toBeGreaterThanOrEqual(
+        ef.frontier[i - 1].ret - 1e-9,
       );
     }
   });
@@ -152,7 +174,7 @@ describe("efficientFrontier", () => {
     const toPrice = (rets: number[]) => {
       const out = [100];
       for (let i = 1; i < rets.length; i++) {
-        out.push(out[i - 1]! * (1 + rets[i]!));
+        out.push(out[i - 1] * (1 + rets[i]));
       }
       return out;
     };
@@ -190,5 +212,23 @@ describe("preparePlotData", () => {
       expect(Number.isFinite(p.stdev)).toBe(true);
       expect(Number.isFinite(p.ret)).toBe(true);
     });
+  });
+
+  it("skips assets with fewer than 2 valid returns and a current portfolio with fewer than 2 points", () => {
+    // Only 2 dates means each asset has just 1 return after slicing off the
+    // forced leading 0, so every asset is skipped alongside the 1-point
+    // current portfolio - only the (externally supplied) optimum remains.
+    const dates = ["2020-01-01", "2020-01-02"];
+    const s1 = OpenTimeSeries.fromArrays("A", dates, [100, 101]);
+    const s2 = OpenTimeSeries.fromArrays("B", dates, [50, 52]);
+    const frame = new OpenFrame([s1, s2], [0.5, 0.5]);
+    const singlePointPortfolio = { dates: ["2020-01-01"], values: [100] };
+    const optimum = { stdev: 0.1, ret: 0.05, sharpe: 0.5, weights: [0.5, 0.5] };
+    const points = preparePlotData(frame, singlePointPortfolio, optimum);
+    const labels = points.map((p) => p.label);
+    expect(labels).not.toContain("A");
+    expect(labels).not.toContain("B");
+    expect(labels).not.toContain("Current Portfolio");
+    expect(labels).toEqual(["Max Sharpe Portfolio"]);
   });
 });

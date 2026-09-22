@@ -8,6 +8,7 @@ import { OpenFrame } from "./frame";
 import { OpenTimeSeries } from "./series";
 import { ffill, pctChange } from "./utils";
 import { lastBusinessDayOfMonth, lastBusinessDayOfYear } from "./bizcalendar";
+import { IncorrectArgumentComboError } from "./types";
 
 export interface ReportOptions {
   title?: string;
@@ -36,12 +37,12 @@ export function computeAnnualReturns(
   const byYear: Record<string, { first: number; last: number }> = {};
   for (let i = 0; i < dates.length; i++) {
     const year = dates[i].slice(0, 4);
-    if (!byYear[year]) byYear[year] = { first: values[i]!, last: values[i]! };
-    else byYear[year]!.last = values[i]!;
+    if (!byYear[year]) byYear[year] = { first: values[i], last: values[i] };
+    else byYear[year].last = values[i]!;
   }
   const result: Record<string, number> = {};
   for (const year of Object.keys(byYear).sort()) {
-    const { first, last } = byYear[year]!;
+    const { first, last } = byYear[year];
     result[year] = first <= 0 ? NaN : last / first - 1;
   }
   return result;
@@ -88,14 +89,14 @@ export function computeCaptureRatioCagr(
  * @param frame - OpenFrame with aligned series (mergeSeries("inner"))
  * @param options - Report options (title, logo). Countries come from frame.countries.
  * @returns HTML string
- * @throws Error when frame has fewer than 2 constituents
+ * @throws {IncorrectArgumentComboError} when frame has fewer than 2 constituents
  */
 export function reportHtml(
   frame: OpenFrame,
   options: ReportOptions = {},
 ): string {
   if (frame.itemCount < 2) {
-    throw new Error(
+    throw new IncorrectArgumentComboError(
       "OpenFrame must have at least 2 constituents to generate a report",
     );
   }
@@ -112,16 +113,13 @@ export function reportHtml(
   const seriesData = frame.columnLabels.map((name, i) => ({
     name,
     dates: rawDates,
-    values: colsFfilled[i]!,
+    values: colsFfilled[i],
   }));
 
   const series = frame.columnLabels.map((_, i) =>
-    OpenTimeSeries.fromArrays(
-      frame.columnLabels[i]!,
-      rawDates,
-      colsFfilled[i]!,
-      { countries },
-    ),
+    OpenTimeSeries.fromArrays(frame.columnLabels[i], rawDates, colsFfilled[i], {
+      countries,
+    }),
   );
 
   const stats: { metric: string; values: (string | number)[] }[] = [];
@@ -242,7 +240,7 @@ function generateHtml(
     rets[0] = 0;
     const cum = [1];
     for (let i = 1; i < rets.length; i++) {
-      cum.push((cum[i - 1] ?? 0) * (1 + rets[i]!));
+      cum.push((cum[i - 1] ?? 0) * (1 + rets[i]));
     }
     return { name: s.name, dates: s.dates, values: cum };
   });

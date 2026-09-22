@@ -69,17 +69,18 @@ function parseArgs(args: string[]): {
       title = args[i + 1]!;
       i++;
     } else if (a === "--simulations" && args[i + 1]) {
-      simulations = parseInt(args[i + 1]!, 10);
+      simulations = parseInt(args[i + 1], 10);
       i++;
     } else if (a === "--points" && args[i + 1]) {
-      points = parseInt(args[i + 1]!, 10);
+      points = parseInt(args[i + 1], 10);
       i++;
     } else if (a === "--seed" && args[i + 1]) {
-      seed = parseInt(args[i + 1]!, 10);
+      seed = parseInt(args[i + 1], 10);
       i++;
     } else if (a === "--countries" && args[i + 1]) {
-      countries = args[i + 1]!.split(",")
-        .map((c) => c.trim().toUpperCase() as CountryCode)
+      countries = args[i + 1]
+        .split(",")
+        .map((c) => c.trim().toUpperCase())
         .filter(Boolean);
       i++;
     } else if (a === "--filename" && args[i + 1]) {

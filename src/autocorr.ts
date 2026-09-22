@@ -59,8 +59,8 @@ export function pearsonAutocorrAtLag(rets: number[], lag: number): number {
   let dx = 0;
   let dy = 0;
   for (let i = 0; i < x.length; i++) {
-    const a = x[i]! - mx;
-    const b = y[i]! - my;
+    const a = x[i] - mx;
+    const b = y[i] - my;
     num += a * b;
     dx += a * a;
     dy += b * b;
@@ -102,17 +102,17 @@ export function pacfFromReturns(
     if (k === 1) {
       phiKk = acfArr[1]!;
     } else {
-      let numer = acfArr[k]!;
+      let numer = acfArr[k];
       let denom = 1.0;
       for (let j = 0; j < k - 1; j++) {
-        numer -= phi[k - 2]![j]! * acfArr[k - 1 - j]!;
-        denom -= phi[k - 2]![j]! * acfArr[j + 1]!;
+        numer -= phi[k - 2][j] * acfArr[k - 1 - j];
+        denom -= phi[k - 2][j] * acfArr[j + 1];
       }
       phiKk = numer / denom;
     }
     const phiRow = new Array<number>(k).fill(0);
     for (let j = 0; j < k - 1; j++) {
-      phiRow[j] = phi[k - 2]![j]! - phiKk * phi[k - 2]![k - 2 - j]!;
+      phiRow[j] = phi[k - 2][j] - phiKk * phi[k - 2][k - 2 - j];
     }
     phiRow[k - 1] = phiKk;
     phi.push(phiRow);
@@ -202,8 +202,8 @@ function logGamma(z: number): number {
     return Math.log(Math.PI / Math.sin(Math.PI * z)) - logGamma(1 - z);
   }
   z -= 1;
-  let x = c[0]!;
-  for (let i = 1; i < g + 2; i++) x += c[i]! / (z + i);
+  let x = c[0];
+  for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
   const t = z + g + 0.5;
   return (
     0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x)

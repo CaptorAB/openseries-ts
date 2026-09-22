@@ -87,9 +87,9 @@ describe("OpenTimeSeries autocorr extensions", () => {
     const s = simulatedSeries("Test");
     const acf = s.acf(3, {}, true);
     expect(acf.lags).toEqual([0, 1, 2, 3]);
-    expect(to9(acf.values[1]!)).toBe("-0.051726453");
+    expect(to9(acf.values[1])).toBe("-0.051726453");
     const pacf = s.pacf(2, {}, true);
-    expect(to9(pacf.values[2]!)).toBe("-0.005466009");
+    expect(to9(pacf.values[2])).toBe("-0.005466009");
   });
 
   it("ljungBox with custom lags and squared=true match Python", () => {

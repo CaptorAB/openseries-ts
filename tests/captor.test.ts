@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fetchCaptorSeries, fetchCaptorSeriesBatch } from "../src/captor";
+import { CaptorApiError } from "../src/types";
 
 describe("fetchCaptorSeries", () => {
   const mockResponse = {
@@ -53,7 +54,11 @@ describe("fetchCaptorSeries", () => {
       statusText: "Not Found",
     } as Response);
 
-    await expect(fetchCaptorSeries("nonexistent-id")).rejects.toThrow(
+    const error: unknown = await fetchCaptorSeries("nonexistent-id").catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(CaptorApiError);
+    expect((error as Error).message).toBe(
       "Failed to fetch nonexistent-id: 404 Not Found",
     );
   });
@@ -135,7 +140,11 @@ describe("fetchCaptorSeriesBatch", () => {
         statusText: "Internal Server Error",
       } as Response);
 
-    await expect(fetchCaptorSeriesBatch(["id-1", "id-2"])).rejects.toThrow(
+    const error: unknown = await fetchCaptorSeriesBatch(["id-1", "id-2"]).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(CaptorApiError);
+    expect((error as Error).message).toBe(
       "Failed to fetch id-2: 500 Internal Server Error",
     );
   });

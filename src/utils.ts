@@ -34,6 +34,13 @@ export function pctChange(values: number[]): number[] {
   return result;
 }
 
+/**
+ * Returns the running (cumulative) product of an array.
+ *
+ * @param values - Factors to multiply, e.g. `1 + return` for each period
+ * @param start - Initial accumulator value
+ * @returns Cumulative product after each element
+ */
 export function cumProd(values: number[], start = 1): number[] {
   const result: number[] = [];
   let acc = start;
@@ -44,6 +51,10 @@ export function cumProd(values: number[], start = 1): number[] {
   return result;
 }
 
+/**
+ * Forward-fills NaN values with the last preceding non-NaN value.
+ * Leading NaNs before the first non-NaN value are left unchanged.
+ */
 export function ffill(values: number[]): number[] {
   const result: number[] = [];
   let last = values[0];
@@ -54,6 +65,9 @@ export function ffill(values: number[]): number[] {
   return result;
 }
 
+/**
+ * Returns period-over-period logarithmic returns. First element is 0.
+ */
 export function logReturns(values: number[]): number[] {
   const result: number[] = [0];
   for (let i = 1; i < values.length; i++) {
@@ -62,6 +76,13 @@ export function logReturns(values: number[]): number[] {
   return result;
 }
 
+/**
+ * Returns the inverse of the standard normal CDF (the probit function) via
+ * the Acklam rational approximation.
+ *
+ * @param p - Probability in the open interval (0, 1)
+ * @returns The z-score such that `Phi(z) === p`, or NaN when p is outside (0, 1)
+ */
 export function normPpf(p: number): number {
   if (p <= 0 || p >= 1) return NaN;
   const a = [
@@ -106,6 +127,11 @@ export function normPpf(p: number): number {
   return x;
 }
 
+/**
+ * Returns the sample skewness (third standardized moment).
+ * Returns NaN when there are fewer than 3 values, and 0 when the
+ * standard deviation is 0.
+ */
 export function skewness(arr: number[]): number {
   const n = arr.length;
   if (n < 3) return NaN;
@@ -116,6 +142,11 @@ export function skewness(arr: number[]): number {
   return m3 / s ** 3;
 }
 
+/**
+ * Returns the sample excess kurtosis (fourth standardized moment minus 3).
+ * Returns NaN when there are fewer than 4 values, and 0 when the
+ * standard deviation is 0.
+ */
 export function kurtosis(arr: number[]): number {
   const n = arr.length;
   if (n < 4) return NaN;

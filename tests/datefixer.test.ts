@@ -5,6 +5,7 @@ import {
   dateFix,
   dateToStr,
 } from "../src/datefixer";
+import { InvalidArgumentError } from "../src/types";
 
 describe("dateFix", () => {
   it("returns Date when given string", () => {
@@ -32,6 +33,7 @@ describe("generateCalendarDateRange", () => {
     expect(() => generateCalendarDateRange(-1)).toThrow(
       "trading_days must be greater than zero",
     );
+    expect(() => generateCalendarDateRange(0)).toThrow(InvalidArgumentError);
   });
 
   it("with end option returns expected dates (5 days ending 2020-01-10)", () => {

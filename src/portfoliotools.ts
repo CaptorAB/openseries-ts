@@ -126,7 +126,7 @@ export function efficientFrontier(
   }
 
   const invCov = invertMatrix(cov);
-  const ones = new Array(frame.itemCount).fill(1);
+  const ones = new Array<number>(frame.itemCount).fill(1);
   const invCovOnes = matVec(invCov, ones);
   const sumInv = invCovOnes.reduce((a, b) => a + b, 0);
   const wGmv = sumInv !== 0 ? invCovOnes.map((x) => x / sumInv) : null;
@@ -163,11 +163,11 @@ export function efficientFrontier(
     );
     if (w) {
       let ret = 0;
-      for (let i = 0; i < frame.itemCount; i++) ret += w[i]! * meanRets[i]!;
+      for (let i = 0; i < frame.itemCount; i++) ret += w[i] * meanRets[i];
       let varP = 0;
       for (let i = 0; i < frame.itemCount; i++) {
         for (let j = 0; j < frame.itemCount; j++) {
-          varP += w[i]! * w[j]! * cov[i]![j]!;
+          varP += w[i] * w[j] * cov[i][j];
         }
       }
       const vol = Math.sqrt(varP);
@@ -221,22 +221,22 @@ function invertMatrix(m: number[][]): number[][] {
   for (let col = 0; col < n; col++) {
     let maxRow = col;
     for (let row = col + 1; row < n; row++) {
-      if (Math.abs(a[row][col]!) > Math.abs(a[maxRow][col]!)) maxRow = row;
+      if (Math.abs(a[row][col]) > Math.abs(a[maxRow][col])) maxRow = row;
     }
     [a[col], a[maxRow]] = [a[maxRow], a[col]];
     [inv[col], inv[maxRow]] = [inv[maxRow], inv[col]];
     const pivot = a[col][col];
     if (pivot === undefined || Math.abs(pivot) < 1e-12) return m;
     for (let j = 0; j < n; j++) {
-      a[col][j]! /= pivot;
-      inv[col][j]! /= pivot;
+      a[col][j] /= pivot;
+      inv[col][j] /= pivot;
     }
     for (let row = 0; row < n; row++) {
       if (row !== col) {
-        const factor = a[row][col]!;
+        const factor = a[row][col];
         for (let j = 0; j < n; j++) {
-          a[row][j]! -= factor * a[col][j]!;
-          inv[row][j]! -= factor * inv[col][j]!;
+          a[row][j] -= factor * a[col][j];
+          inv[row][j] -= factor * inv[col][j];
         }
       }
     }
@@ -264,10 +264,8 @@ function solveEfficientWeights(
   if (Math.abs(det) < 1e-14) return null;
   const lambda1 = (C * targetRet - A) / det;
   const lambda2 = (B - A * targetRet) / det;
-  const ones = new Array(n).fill(1);
-  const linearCombo = meanRets.map(
-    (mu, i) => lambda1 * mu + lambda2 * ones[i]!,
-  );
+  const ones = new Array<number>(n).fill(1);
+  const linearCombo = meanRets.map((mu, i) => lambda1 * mu + lambda2 * ones[i]);
   const w = matVec(invCov, linearCombo);
   const sum = w.reduce((a, b) => a + b, 0);
   if (Math.abs(sum) < 1e-12) return null;

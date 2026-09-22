@@ -122,20 +122,19 @@ console.log(series.autocorr());   // lag-1 autocorrelation of demeaned returns
 
 API reference: <https://captorab.github.io/openseries-ts/>
 
-To regenerate docs locally:
+Docs are built with [TypeDoc](https://typedoc.org/) and deployed to GitHub
+Pages automatically by
+[`.github/workflows/docs.yml`](.github/workflows/docs.yml) on every push to
+`master`. The generated `docs/` folder is not committed to the repo
+(see `.gitignore`).
+
+To preview docs locally:
 
 ```bash
 npm run docs
 ```
 
-This writes static HTML to `docs/`. To serve them via GitHub Pages:
-
-1. Run `npm run docs` and commit the `docs/` folder
-2. In the repo: **Settings → Pages**
-3. Under **Source**, choose **Deploy from a branch**
-4. Branch: `main` (or your default branch), folder: `/docs`
-
-Docs will be available at `https://<username>.github.io/<repo>/`.
+This writes static HTML to `docs/`.
 
 ## Scripts
 

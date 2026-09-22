@@ -4,6 +4,8 @@
  * API: https://api.captor.se/public/api/opentimeseries/{id}
  */
 
+import { CaptorApiError } from "./types";
+
 const API_BASE = "https://api.captor.se/public/api/opentimeseries";
 
 export type CaptorSeriesResponse = {
@@ -27,7 +29,9 @@ export async function fetchCaptorSeries(
   const url = `${API_BASE}/${id}`;
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${id}: ${res.status} ${res.statusText}`);
+    throw new CaptorApiError(
+      `Failed to fetch ${id}: ${res.status} ${res.statusText}`,
+    );
   }
   return res.json() as Promise<CaptorSeriesResponse>;
 }

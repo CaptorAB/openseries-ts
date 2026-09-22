@@ -7,6 +7,8 @@ import {
   LabelsNotUniqueError,
   IncorrectArgumentComboError,
   ResampleDataLossError,
+  InvalidArgumentError,
+  CaptorApiError,
 } from "../src/types";
 
 describe("Error classes", () => {
@@ -55,6 +57,20 @@ describe("Error classes", () => {
   it("ResampleDataLossError has correct name and message", () => {
     const err = new ResampleDataLossError("test message");
     expect(err.name).toBe("ResampleDataLossError");
+    expect(err.message).toBe("test message");
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("InvalidArgumentError has correct name and message", () => {
+    const err = new InvalidArgumentError("test message");
+    expect(err.name).toBe("InvalidArgumentError");
+    expect(err.message).toBe("test message");
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("CaptorApiError has correct name and message", () => {
+    const err = new CaptorApiError("test message");
+    expect(err.name).toBe("CaptorApiError");
     expect(err.message).toBe("test message");
     expect(err).toBeInstanceOf(Error);
   });
