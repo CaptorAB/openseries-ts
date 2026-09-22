@@ -164,6 +164,7 @@ export class OpenTimeSeries {
     });
   }
 
+  /** Returns an independent copy of this series (dates/values arrays are cloned). */
   fromDeepcopy(): OpenTimeSeries {
     return new OpenTimeSeries({
       timeseriesId: this.timeseriesId,
@@ -180,10 +181,12 @@ export class OpenTimeSeries {
     });
   }
 
+  /** Returns the current values from `tsdf`, in date order. */
   getTsdfValues(): number[] {
     return this.tsdf.map((r) => r.value);
   }
 
+  /** Returns the current dates from `tsdf`, in date order. */
   getTsdfDates(): string[] {
     return this.tsdf.map((r) => r.date);
   }
@@ -231,30 +234,37 @@ export class OpenTimeSeries {
     return values.length / fraction;
   }
 
+  /** Number of observations in `tsdf`. */
   get length(): number {
     return this.tsdf.length;
   }
 
+  /** The earliest date in `tsdf`. */
   get firstIdx(): string {
     return this.tsdf[0].date;
   }
 
+  /** The latest date in `tsdf`. */
   get lastIdx(): string {
     return this.tsdf[this.tsdf.length - 1].date;
   }
 
+  /** Number of calendar days between `firstIdx` and `lastIdx`. */
   get spanOfDays(): number {
     return daysBetween(this.firstIdx, this.lastIdx);
   }
 
+  /** `spanOfDays` expressed in years (365.25-day year). */
   get yearfrac(): number {
     return this.spanOfDays / 365.25;
   }
 
+  /** Average number of observations per year, based on `length` and `yearfrac`. */
   get periodsInAYear(): number {
     return this.length / this.yearfrac;
   }
 
+  /** Converts a price series to period-over-period returns in place. */
   valueToRet(): this {
     const vals = ffill(this.getTsdfValues());
     const rets = pctChange(vals);
@@ -267,6 +277,7 @@ export class OpenTimeSeries {
     return this;
   }
 
+  /** Converts to a cumulative-return price series (rebased to 1 at the first date), in place. */
   toCumret(): this {
     let rets: number[];
     if (this.valuetype === ValueType.PRICE) {
@@ -291,6 +302,10 @@ export class OpenTimeSeries {
     return this;
   }
 
+  /**
+   * Annualized geometric (compound) return over the sliced date range.
+   * @throws {InitialValueZeroError} when the first or last value is zero or negative
+   */
   geoRet(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -304,6 +319,7 @@ export class OpenTimeSeries {
     return (last / first) ** (1 / fraction) - 1;
   }
 
+  /** Annualized arithmetic mean return over the sliced date range. */
   arithmeticRet(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -314,6 +330,10 @@ export class OpenTimeSeries {
     return mean(vals) * tf;
   }
 
+  /**
+   * Simple (non-annualized) return between the first and last value in the sliced range.
+   * @throws {InitialValueZeroError} when the first value is zero
+   */
   valueRet(opts: DateRangeOptions = {}): number {
     const { values } = this.sliceByRange(opts);
     if (values.length < 2) return NaN;
@@ -326,6 +346,7 @@ export class OpenTimeSeries {
     return last / first - 1;
   }
 
+  /** Annualized volatility (sample standard deviation of returns) over the sliced date range. */
   vol(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -337,6 +358,7 @@ export class OpenTimeSeries {
     return std(rets, 1) * Math.sqrt(tf);
   }
 
+  /** Largest peak-to-trough decline over the sliced date range, expressed as a negative fraction. */
   maxDrawdown(opts: DateRangeOptions = {}): number {
     const { values } = this.sliceByRange(opts);
     if (values.length < 2) return 0;
@@ -371,6 +393,7 @@ export class OpenTimeSeries {
     return bottomIdx >= 0 ? dates[bottomIdx] : undefined;
   }
 
+  /** Historical Value at Risk at the given confidence `level` over the sliced date range. */
   varDown(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -381,6 +404,7 @@ export class OpenTimeSeries {
     return quantile(rets, 1 - level);
   }
 
+  /** Historical Conditional Value at Risk (expected shortfall) at the given confidence `level`. */
   cvarDown(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -396,6 +420,10 @@ export class OpenTimeSeries {
     return mean(rets.slice(0, n));
   }
 
+  /**
+   * Annualized downside deviation: volatility of returns falling short of a
+   * minimum acceptable return (`mar`, annualized).
+   */
   downsideDeviation(opts: DateRangeOptions = {}, mar = 0): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -409,12 +437,14 @@ export class OpenTimeSeries {
     return Math.sqrt(lpm2) * Math.sqrt(tf);
   }
 
+  /** Sharpe ratio: annualized excess return over `riskfreeRate`, divided by volatility. */
   retVolRatio(riskfreeRate = 0, opts: DateRangeOptions = {}): number {
     const ret = this.arithmeticRet(opts) - riskfreeRate;
     const v = this.vol(opts);
     return v === 0 ? NaN : ret / v;
   }
 
+  /** Sortino ratio: annualized excess return over `riskfreeRate`, divided by downside deviation. */
   sortinoRatio(
     riskfreeRate = 0,
     minAcceptedReturn = 0,
@@ -425,6 +455,7 @@ export class OpenTimeSeries {
     return dd === 0 ? NaN : ret / dd;
   }
 
+  /** Fraction of periods with a positive return over the sliced date range. */
   positiveShare(opts: DateRangeOptions = {}): number {
     const { values } = this.sliceByRange(opts);
     if (values.length < 2) return NaN;
@@ -436,6 +467,7 @@ export class OpenTimeSeries {
     return rets.length === 0 ? NaN : pos / rets.length;
   }
 
+  /** Worst rolling sum of `observations` consecutive returns over the sliced date range. */
   worst(observations = 1, opts: DateRangeOptions = {}): number {
     const { values } = this.sliceByRange(opts);
     if (values.length < observations + 1) return NaN;
@@ -451,6 +483,7 @@ export class OpenTimeSeries {
     return minVal;
   }
 
+  /** Sample skewness of returns over the sliced date range. */
   skew(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 3) return NaN;
@@ -461,6 +494,7 @@ export class OpenTimeSeries {
     return skewness(rets);
   }
 
+  /** Sample excess kurtosis of returns over the sliced date range. */
   kurtosis(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 4) return NaN;
@@ -471,6 +505,7 @@ export class OpenTimeSeries {
     return kurtosis(rets);
   }
 
+  /** Z-score of the most recent return relative to the mean and standard deviation of the range. */
   zScore(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -544,6 +579,7 @@ export class OpenTimeSeries {
     return ljungBoxFromReturns(rets, lags);
   }
 
+  /** Annualized volatility implied by the historical VaR at the given confidence `level`. */
   volFromVar(level = 0.95, opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
     if (dates.length < 2) return NaN;
@@ -556,6 +592,10 @@ export class OpenTimeSeries {
     return (-Math.sqrt(tf) * q) / normPpf(level);
   }
 
+  /**
+   * Annualized EWMA (exponentially weighted moving average) volatility series.
+   * The first `dayChunk` log-returns seed the initial volatility estimate.
+   */
   ewmaVolFunc(
     lmbda = 0.94,
     dayChunk = 11,
@@ -576,6 +616,7 @@ export class OpenTimeSeries {
     return result;
   }
 
+  /** EWMA Value at Risk series at the given confidence `level`, derived from `ewmaVolFunc`. */
   ewmaVarFunc(
     lmbda = 0.94,
     dayChunk = 11,
@@ -586,6 +627,7 @@ export class OpenTimeSeries {
     return vols.map((v) => v * normPpf(1 - level));
   }
 
+  /** Sets `label` and/or `valuetype` in place. Either argument may be omitted to leave it unchanged. */
   setNewLabel(lvlZero?: string, lvlOne?: ValueType): this {
     if (lvlZero != null) this.label = lvlZero;
     if (lvlOne != null) this.valuetype = lvlOne;
@@ -607,7 +649,8 @@ export class OpenTimeSeries {
 
   /**
    * Resamples to business period-end frequency (week, month, quarter, year).
-   * Mutates tsdf. Throws on return series (use price series).
+   * Mutates tsdf.
+   * @throws {ResampleDataLossError} on return series (convert to a price series first)
    */
   resampleToPeriodEnd(freq: ResampleFreq = "ME"): this {
     if (this.valuetype === ValueType.RTRN)
@@ -629,6 +672,7 @@ export class OpenTimeSeries {
   /**
    * Worst single calendar month return (business-month-end based).
    * Uses filterToBusinessDays + resampleToPeriodEnd(ME) + min of monthly returns.
+   * @throws {ResampleDataLossError} on return series (convert to a price series first)
    */
   worstMonth(opts: DateRangeOptions = {}): number {
     const { dates, values } = this.sliceByRange(opts);
@@ -653,6 +697,7 @@ export class OpenTimeSeries {
     return monthlyRets.length === 0 ? NaN : Math.min(...monthlyRets);
   }
 
+  /** Converts to a drawdown series (fraction below the running peak, always <= 0), in place. */
   toDrawdownSeries(): this {
     const vals = this.getTsdfValues().map((v) =>
       Number.isNaN(v) ? -Infinity : v,
@@ -672,6 +717,7 @@ export class OpenTimeSeries {
 
 /**
  * Chains two timeseries at their overlap. Scales back by front's level at the overlap date.
+ * @throws {DateAlignmentError} when the two series' dates do not overlap
  */
 export function timeseriesChain(
   front: OpenTimeSeries,
