@@ -82,8 +82,9 @@ function parseArgs(args: string[]): {
       toDate = args[i + 1]!;
       i++;
     } else if (a === "--countries" && args[i + 1]) {
-      countries = args[i + 1]!.split(",")
-        .map((c) => c.trim().toUpperCase() as CountryCode)
+      countries = args[i + 1]
+        .split(",")
+        .map((c) => c.trim().toUpperCase())
         .filter(Boolean);
       i++;
     } else if (a === "--filename" && args[i + 1]) {
@@ -99,8 +100,8 @@ function parseArgs(args: string[]): {
       useDrawdown = true;
     } else if (a === "--ids") {
       i++;
-      while (i < args.length && !args[i]!.startsWith("--")) {
-        ids.push(args[i]!);
+      while (i < args.length && !args[i].startsWith("--")) {
+        ids.push(args[i]);
         i++;
       }
       i--;
@@ -121,7 +122,7 @@ function parseArgs(args: string[]): {
   const finalTitle = useDrawdown
     ? "Drawdown Series"
     : useIris
-      ? IRIS_SERIES[0]!.name
+      ? IRIS_SERIES[0].name
       : title;
 
   return {

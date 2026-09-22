@@ -47,7 +47,7 @@ function seriesToPlotData(
       },
     ];
   }
-  const frame = series as OpenFrame;
+  const frame = series;
   const { dates, columns } = frame.tsdf;
   const colsFfilled = columns.map((col) => ffill(col));
   return frame.columnLabels.map((name, i) => ({
@@ -66,7 +66,7 @@ function toCumulativeReturns(
     rets[0] = 0;
     const cum = [1];
     for (let i = 1; i < rets.length; i++) {
-      cum.push((cum[i - 1] ?? 0) * (1 + rets[i]!));
+      cum.push((cum[i - 1] ?? 0) * (1 + rets[i]));
     }
     return { name: s.name, dates: s.dates, values: cum };
   });

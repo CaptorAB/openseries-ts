@@ -161,17 +161,17 @@ export function resampleToPeriodEnd(
 
   let i = 0;
   while (i < dates.length) {
-    const periodKey = getPeriodKey(dates[i]!);
+    const periodKey = getPeriodKey(dates[i]);
     let lastBizIdx = -1;
     let j = i;
-    while (j < dates.length && getPeriodKey(dates[j]!) === periodKey) {
-      if (isBiz(dates[j]!)) lastBizIdx = j;
+    while (j < dates.length && getPeriodKey(dates[j]) === periodKey) {
+      if (isBiz(dates[j])) lastBizIdx = j;
       j++;
     }
     if (lastBizIdx >= 0) {
-      outDates.push(dates[lastBizIdx]!);
+      outDates.push(dates[lastBizIdx]);
       for (let c = 0; c < columns.length; c++) {
-        outCols[c].push(columns[c][lastBizIdx]!);
+        outCols[c].push(columns[c][lastBizIdx]);
       }
     }
     i = j;
@@ -191,11 +191,10 @@ export function filterToBusinessDays(
   const checkers = createHolidayCheckers(countries);
   const indices: number[] = [];
   for (let i = 0; i < dates.length; i++) {
-    if (!isWeekend(dates[i]!) && !isHoliday(dates[i]!, checkers))
-      indices.push(i);
+    if (!isWeekend(dates[i]) && !isHoliday(dates[i], checkers)) indices.push(i);
   }
   return {
-    dates: indices.map((i) => dates[i]!),
-    columns: columns.map((col) => indices.map((i) => col[i]!)),
+    dates: indices.map((i) => dates[i]),
+    columns: columns.map((col) => indices.map((i) => col[i])),
   };
 }

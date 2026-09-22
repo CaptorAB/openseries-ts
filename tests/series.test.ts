@@ -334,9 +334,9 @@ describe("OpenTimeSeries", () => {
       const acf = s.acf(5);
       expect(acf.lags).toEqual([0, 1, 2, 3, 4, 5]);
       expect(acf.values[0]).toBe(1);
-      expect(to9(acf.values[1]!)).toBe("0.006631759");
-      expect(to9(acf.values[2]!)).toBe("-0.091794828");
-      expect(to9(acf.values[5]!)).toBe("0.011634972");
+      expect(to9(acf.values[1])).toBe("0.006631759");
+      expect(to9(acf.values[2])).toBe("-0.091794828");
+      expect(to9(acf.values[5])).toBe("0.011634972");
     });
 
     it("acf(lags=[0,1,3,5]) matches expected", () => {
@@ -344,8 +344,8 @@ describe("OpenTimeSeries", () => {
       const acf = s.acf([0, 1, 3, 5]);
       expect(acf.lags).toEqual([0, 1, 3, 5]);
       expect(acf.values[0]).toBe(1);
-      expect(to9(acf.values[1]!)).toBe("0.006631759");
-      expect(to9(acf.values[3]!)).toBe("0.011634972");
+      expect(to9(acf.values[1])).toBe("0.006631759");
+      expect(to9(acf.values[3])).toBe("0.011634972");
     });
 
     it("pacf(lags=5) matches expected", () => {
@@ -353,9 +353,9 @@ describe("OpenTimeSeries", () => {
       const pacf = s.pacf(5);
       expect(pacf.lags).toEqual([0, 1, 2, 3, 4, 5]);
       expect(pacf.values[0]).toBe(1);
-      expect(to9(pacf.values[1]!)).toBe("0.006631759");
-      expect(to9(pacf.values[2]!)).toBe("-0.091842847");
-      expect(to9(pacf.values[5]!)).toBe("0.026246036");
+      expect(to9(pacf.values[1])).toBe("0.006631759");
+      expect(to9(pacf.values[2])).toBe("-0.091842847");
+      expect(to9(pacf.values[5])).toBe("0.026246036");
     });
 
     it("partialAutocorr matches expected", () => {

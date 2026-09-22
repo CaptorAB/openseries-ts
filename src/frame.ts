@@ -64,14 +64,14 @@ function alignSeriesToCommonDates(
     let hi = seriesDates.length - 1;
     while (lo < hi) {
       const mid = Math.ceil((lo + hi) / 2);
-      if (seriesDates[mid]! <= d) lo = mid;
+      if (seriesDates[mid] <= d) lo = mid;
       else hi = mid - 1;
     }
-    return dateToVal.get(seriesDates[lo]!) ?? null;
+    return dateToVal.get(seriesDates[lo]) ?? null;
   };
 
   const valuesBySeries = series.map((s, i) =>
-    dates.map((d) => getVal(seriesMaps[i]!, d) ?? NaN),
+    dates.map((d) => getVal(seriesMaps[i], d) ?? NaN),
   );
 
   const ffilled = valuesBySeries.map((vals) => {
@@ -175,8 +175,8 @@ export class OpenFrame {
       i < this.constituents.length && i < newColumns.length;
       i++
     ) {
-      const col = newColumns[i]!;
-      this.constituents[i]!.tsdf = this.tsdf.dates.map((d, j) => ({
+      const col = newColumns[i];
+      this.constituents[i].tsdf = this.tsdf.dates.map((d, j) => ({
         date: d,
         value: col[j] ?? NaN,
       }));
@@ -278,7 +278,7 @@ export class OpenFrame {
     rets: number[][],
   ): number[] {
     if (strat === "eq_weights") {
-      return new Array(this.itemCount).fill(1 / this.itemCount);
+      return new Array<number>(this.itemCount).fill(1 / this.itemCount);
     }
     if (strat === "inv_vol") {
       const vols = rets.map((col) => {
@@ -292,7 +292,9 @@ export class OpenFrame {
     if (strat === "min_vol_overweight") {
       const vols = rets.map((col) => std(col.slice(1), 1));
       const minIdx = vols.indexOf(Math.min(...vols));
-      const w = new Array(this.itemCount).fill(0.4 / (this.itemCount - 1));
+      const w = new Array<number>(this.itemCount).fill(
+        0.4 / (this.itemCount - 1),
+      );
       w[minIdx] = 0.6;
       return w;
     }
@@ -318,7 +320,7 @@ export class OpenFrame {
       const total = sum.reduce((a, b) => a + b, 0);
       return sum.map((s) => s / total);
     }
-    return new Array(this.itemCount).fill(1 / this.itemCount);
+    return new Array<number>(this.itemCount).fill(1 / this.itemCount);
   }
 
   private invertMatrix(m: number[][]): number[][] {

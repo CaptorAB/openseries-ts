@@ -90,8 +90,9 @@ function parseArgs(args: string[]): {
       toDate = args[i + 1]!;
       i++;
     } else if (a === "--countries" && args[i + 1]) {
-      countries = args[i + 1]!.split(",")
-        .map((c) => c.trim().toUpperCase() as CountryCode)
+      countries = args[i + 1]
+        .split(",")
+        .map((c) => c.trim().toUpperCase())
         .filter(Boolean);
       i++;
     } else if (a === "--filename" && args[i + 1]) {
@@ -107,8 +108,8 @@ function parseArgs(args: string[]): {
       useCaptor = true;
     } else if (a === "--ids") {
       i++;
-      while (i < args.length && !args[i]!.startsWith("--")) {
-        ids.push(args[i]!);
+      while (i < args.length && !args[i].startsWith("--")) {
+        ids.push(args[i]);
         i++;
       }
       i--;
@@ -127,7 +128,7 @@ function parseArgs(args: string[]): {
   const finalIds = preset ? preset.map((s) => s.id) : ids;
   const presetNames = preset ? preset.map((s) => s.name) : undefined;
   const effectiveUseIris = preset === IRIS_SERIES;
-  const finalTitle = effectiveUseIris ? IRIS_SERIES[0]!.name : title;
+  const finalTitle = effectiveUseIris ? IRIS_SERIES[0].name : title;
 
   return {
     ids: finalIds,

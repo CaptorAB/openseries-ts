@@ -105,11 +105,11 @@ describe("efficientFrontier", () => {
     });
     const ef = efficientFrontier(frame, 500, 71, 25);
     for (let i = 1; i < ef.frontier.length; i++) {
-      expect(ef.frontier[i]!.stdev).toBeGreaterThanOrEqual(
-        ef.frontier[i - 1]!.stdev - 1e-9,
+      expect(ef.frontier[i].stdev).toBeGreaterThanOrEqual(
+        ef.frontier[i - 1].stdev - 1e-9,
       );
-      expect(ef.frontier[i]!.ret).toBeGreaterThanOrEqual(
-        ef.frontier[i - 1]!.ret - 1e-9,
+      expect(ef.frontier[i].ret).toBeGreaterThanOrEqual(
+        ef.frontier[i - 1].ret - 1e-9,
       );
     }
   });
@@ -152,7 +152,7 @@ describe("efficientFrontier", () => {
     const toPrice = (rets: number[]) => {
       const out = [100];
       for (let i = 1; i < rets.length; i++) {
-        out.push(out[i - 1]! * (1 + rets[i]!));
+        out.push(out[i - 1] * (1 + rets[i]));
       }
       return out;
     };

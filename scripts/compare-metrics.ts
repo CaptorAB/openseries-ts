@@ -77,8 +77,8 @@ function loadFrameFromJson(path: string): {
   irisSeries: OpenTimeSeries;
   frame: OpenFrame;
 } {
-  const raw = JSON.parse(readFileSync(path, "utf-8"));
-  const items: FrameJsonItem[] = Array.isArray(raw) ? raw : [raw];
+  const raw: unknown = JSON.parse(readFileSync(path, "utf-8"));
+  const items = (Array.isArray(raw) ? raw : [raw]) as FrameJsonItem[];
   if (items.length < 1) {
     throw new Error("frame.json must contain at least one series");
   }
@@ -98,12 +98,19 @@ function loadFrameFromJson(path: string): {
 }
 
 function loadPythonMetrics(path: string): Record<string, unknown> {
-  const raw = JSON.parse(readFileSync(path, "utf-8"));
+  const raw: unknown = JSON.parse(readFileSync(path, "utf-8"));
+  const asRecord =
+    typeof raw === "object" && raw !== null
+      ? (raw as Record<string, unknown>)
+      : {};
   const col =
-    typeof raw === "object" && raw !== null && IRIS_LABEL in raw
-      ? raw[IRIS_LABEL]
-      : Object.values(raw)[0];
+    IRIS_LABEL in asRecord ? asRecord[IRIS_LABEL] : Object.values(asRecord)[0];
   return (col as Record<string, unknown>) ?? {};
+}
+
+/** Stringifies a JSON-decoded value without falling back to `[object Object]`. */
+function safeString(v: unknown): string {
+  return typeof v === "object" && v !== null ? JSON.stringify(v) : String(v);
 }
 
 function tsDateStr(v: unknown): string {
@@ -136,7 +143,7 @@ function parseDecimals(args: string[]): number {
   // --decimals N
   const idx = args.indexOf("--decimals");
   if (idx >= 0 && args[idx + 1] != null) {
-    const n = parseInt(args[idx + 1]!, 10);
+    const n = parseInt(args[idx + 1], 10);
     if (Number.isInteger(n) && n >= 0) return n;
   }
   // env COMPARE_DECIMALS (works with npm run even without --)
@@ -242,7 +249,7 @@ function main(): void {
 
   // Build comparison table using mapping: Python key -> tsMetrics key
   const pyKeys = Object.keys(pythonMetrics).filter(
-    (k) => pythonMetrics[k] != null && String(pythonMetrics[k]) !== "null",
+    (k) => pythonMetrics[k] != null && safeString(pythonMetrics[k]) !== "null",
   );
   const tsOnlyKeys = Object.keys(tsMetrics).filter(
     (tk) => !Object.values(PY_TO_TS).includes(tk) && !pyKeys.includes(tk),

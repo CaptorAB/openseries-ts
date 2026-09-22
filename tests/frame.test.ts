@@ -128,7 +128,7 @@ describe("OpenFrame", () => {
     const bottoms = frame.maxDrawdownBottomDate();
     expect(bottoms.length).toBe(3);
     expect(
-      bottoms.every((d) => d === undefined || /^\d{4}-\d{2}-\d{2}$/.test(d!)),
+      bottoms.every((d) => d === undefined || /^\d{4}-\d{2}-\d{2}$/.test(d)),
     ).toBe(true);
   });
 
@@ -273,7 +273,7 @@ describe("OpenFrame", () => {
       frame.tsdf.columns[0][1] = Number.NaN;
       frame.toDrawdownSeries();
       expect(frame.tsdf.columns[0][0]).toBe(0);
-      expect(Number.isFinite(frame.tsdf.columns[0][1]!)).toBe(false);
+      expect(Number.isFinite(frame.tsdf.columns[0][1])).toBe(false);
       expect(frame.tsdf.columns[0][2]).toBeCloseTo(-0.05);
     });
 
@@ -294,8 +294,8 @@ describe("OpenFrame", () => {
       const frame = new OpenFrame([s1]);
       frame.mergeSeries("inner");
       frame.toDrawdownSeries();
-      expect(frame.constituents[0]!.getTsdfValues()[0]).toBe(0);
-      expect(frame.constituents[0]!.getTsdfValues()[1]).toBeCloseTo(-0.1);
+      expect(frame.constituents[0].getTsdfValues()[0]).toBe(0);
+      expect(frame.constituents[0].getTsdfValues()[1]).toBeCloseTo(-0.1);
     });
   });
 

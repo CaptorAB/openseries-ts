@@ -565,7 +565,7 @@ export class OpenTimeSeries {
   ): number {
     const result = this.pacf(lag, opts, squared);
     const idx = result.lags.indexOf(lag);
-    return idx >= 0 ? result.values[idx]! : NaN;
+    return idx >= 0 ? result.values[idx] : NaN;
   }
 
   /** Ljung-Box test for autocorrelation at the given lags. */
